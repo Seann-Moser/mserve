@@ -3,6 +3,7 @@ package mserve
 import (
 	"context"
 	_ "embed"
+	"fmt"
 	"github.com/Seann-Moser/credentials/oauth/oclient"
 	"github.com/Seann-Moser/credentials/oauth/oserver"
 	"github.com/Seann-Moser/mserve/nuxt3FromOpenApi"
@@ -13,6 +14,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,7 +23,6 @@ import (
 	"github.com/Seann-Moser/credentials/user"
 	"github.com/Seann-Moser/rbac"
 	"github.com/caddyserver/certmagic"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	goCache "github.com/patrickmn/go-cache"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -55,6 +56,7 @@ func NewServer(serviceName string, r *rbac.Manager, domains []string, sessionCli
 	if serviceName == "" {
 		serviceName = "default"
 	}
+	router.Use(corsMiddleware)
 	return &Server{
 		rbac:           r,
 		ServiceName:    serviceName,
@@ -66,6 +68,45 @@ func NewServer(serviceName string, r *rbac.Manager, domains []string, sessionCli
 		goCache:        goCache.New(time.Minute*5, time.Minute),
 		SSLConfig:      ssl,
 	}
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Change "*" to a specific origin in prod!
+		w.Header().Set("Access-Control-Allow-Origin", getOrigin(r))
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		// handle preflight
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func getOrigin(r *http.Request) string {
+	if v := r.Header.Get("Origin"); v != "" {
+		return v
+	}
+	if v := r.Header.Get("Referer"); v != "" {
+		return v
+	}
+	return ""
+}
+
+func (s *Server) matchOrigin(r *http.Request) (string, error) {
+	origin := getOrigin(r)
+	for _, o := range s.allowedOrigins {
+		if strings.EqualFold(o, origin) {
+			return origin, nil
+		}
+	}
+	if len(s.allowedOrigins) == 0 {
+		return origin, nil
+	}
+	return "", fmt.Errorf("invalid origin %s", origin)
 }
 
 // AddMiddleware sets up dynamic CORS
@@ -107,7 +148,8 @@ func (s *Server) AddEndpoints(ctx context.Context, endpoints ...*Endpoint) error
 		if err != nil {
 			return err
 		}
-		s.router.HandleFunc(e.Path, handler).Methods(e.Methods...)
+		m := append(e.Methods, http.MethodOptions)
+		s.router.HandleFunc(e.Path, handler).Methods(m...)
 		s.endpoints = append(s.endpoints, *e)
 	}
 	return nil
@@ -134,14 +176,7 @@ type SSLConfig struct {
 
 // Run starts the server with CertMagic and OpenTelemetry
 func (s *Server) Run(ctx context.Context) error {
-	s.router.Use(func(next http.Handler) http.Handler {
-		return handlers.CORS(
-			handlers.AllowedOrigins(s.getOrigins()),
-			handlers.AllowCredentials(),
-			handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
-			handlers.AllowedHeaders([]string{"Authorization", "Content-Type", "X-WebAuthn-Session-ID"}),
-		)(next)
-	})
+
 	certmagic.DefaultACME.Agreed = s.SSLConfig.Agreed
 	certmagic.DefaultACME.Email = s.SSLConfig.Email
 

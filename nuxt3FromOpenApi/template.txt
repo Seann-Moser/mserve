@@ -1,124 +1,141 @@
+// noinspection JSUnusedGlobalSymbols, DuplicateCode
+
 /**
  * @typedef {Object} {{.Name}}Client
  * {{range .Endpoints}}
  * @property {({{jsParams .}}) => Promise<any>} {{.FunctionName}} - Calls {{.Method}} {{.Path}}
  * {{end}}
  */
+import { defineNuxtPlugin, useRuntimeConfig } from '#app'
 
+// --- Generated Request Body Classes ---
+{{range .Endpoints}}{{if .HasBody}}
 /**
- * Nuxt plugin to inject a generated API client based on OpenAPI specification.
- * The client uses the native Fetch API.
- *
- * @param {object} nuxtContext - Nuxt application context (or app for Nuxt 3)
- * @param {Function} inject - Nuxt inject function
+ * Class representing the request body for {{.FunctionName}}
  */
-export default async (nuxtContext, inject) => {
-  // Use Nuxt 3's $config or Nuxt 2's app.$config/this.options.publicRuntimeConfig
-  const $config = nuxtContext.$config || nuxtContext.app.$config || {};
-  // The plugin options from nuxt.config.js plugins array, if any, could be accessed here
-  // const pluginOptions = nuxtContext.options || {}; // Only if directly passing options to plugin in nuxt.config.js
+export class {{.FunctionName}}Request {
+  // Declare properties based on body schema
+  {{range $prop := .RequestBodySchema.Properties}}
+  /**
+   * {{with $prop.Description}}{{.}}{{else}}{{$prop.Name}}{{end}}
+   * @type {{jsDocType $prop.Schema}}
+   */
+  {{$prop.Name}};
+  {{end}}
 
-  // Determine base URL, prioritizing runtime config, then default
-  const baseURL = $config.generated{{.Name}}BaseUrl || 'http://localhost:3000'; // Fallback URL
+  /**
+   * Create a new {{.FunctionName}}Request
+   * @param {Partial<{{.FunctionName}}Request>} init - Initial values for fields
+   */
+  constructor(init = {}) {
+    Object.assign(this, init)
+  }
+
+  /**
+   * Serialize this instance to JSON for API calls
+   * @returns {Object}
+   */
+  toJSON() {
+    return { ...this }
+  }
+}
+{{end}}{{end}}
+
+export default defineNuxtPlugin((nuxtApp) => {
+  const config = useRuntimeConfig()
+  const baseURL = config.public.generated{{.Name}}BaseUrl || 'http://localhost:3000'
 
   /**
    * {{.Name}}Client Class
    */
   class {{.Name}}Client {
-    /**
-     * @param {string} baseURL - The base URL for API requests.
-     * @param {object} globalOptions - Global options for fetch, like default headers.
-     */
     constructor(baseURL, globalOptions = {}) {
-      this.baseURL = baseURL;
-      this.globalOptions = globalOptions;
+      this.baseURL = baseURL
+      this.globalOptions = globalOptions
     }
 
-    /**
-     * Internal fetch wrapper for API requests.
-     * @param {string} urlPath - The path relative to the base URL.
-     * @param {RequestInit} fetchOptions - Options for the fetch request.
-     * @returns {Promise<any>} The parsed JSON response or raw text if not JSON.
-     * @throws {Error} If the API request fails or returns a non-OK status.
-     */
-    async _fetch(urlPath, fetchOptions) {
-      try {
-        const fullUrl = new URL(urlPath, this.baseURL).toString();
+    _fetch(urlPath, fetchOptions) {
+      const fullUrl = new URL(urlPath, this.baseURL).toString();
 
-        const response = await fetch(fullUrl, {
-          ...this.globalOptions.fetchOptions, // Global fetch options (e.g., credentials)
-          ...fetchOptions,
-          headers: {
-            'Content-Type': fetchOptions.body ? 'application/json' : undefined, // Set Content-Type for bodies
-            ...this.globalOptions.headers, // Global headers
-            ...fetchOptions.headers // Endpoint-specific headers override global
-          }
-        });
-
+      return fetch(fullUrl, {
+        ...this.globalOptions.fetchOptions,
+        ...fetchOptions,
+        headers: {
+          ...(fetchOptions.body ? { 'Content-Type': 'application/json' } : {}),
+          ...this.globalOptions.headers,
+          ...fetchOptions.headers,
+        },
+      })
+      // first, check for HTTP errors
+      .then(response => {
         if (!response.ok) {
-          const contentType = response.headers.get("content-type");
-          let errorData = {};
-          if (contentType && contentType.includes("application/json")) {
-              errorData = await response.json().catch(() => ({}));
-          } else {
-              errorData.message = await response.text();
+          const contentType = response.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            return response.json()
+              .catch(() => ({}))
+              .then(errData => {
+                throw new Error(errData.message || response.statusText || `API request failed with status ${response.status}`);
+              });
           }
-          throw new Error(errorData.message || response.statusText || 'API request failed with status ' + response.status);
+          return response.text()
+            .then(text => {
+              throw new Error(text || response.statusText || `API request failed with status ${response.status}`);
+            });
         }
-
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-            return await response.json();
-        }
-        // Return text for non-JSON responses (e.g., plain text, HTML, or empty)
-        return await response.text();
-      } catch (error) {
+        return response;
+      })
+      // parse the successful response
+      .then(response => {
+        const contentType = response.headers.get('content-type') || '';
+        return contentType.includes('application/json')
+          ? response.json()
+          : response.text();
+      })
+      // catch & rethrow (after logging)
+      .catch(error => {
         console.error('API Error:', error);
-        throw error; // Re-throw to allow further handling by calling code
-      }
+        return Promise.reject(error);
+      });
     }
+
 
     {{range .Endpoints}}
     /**
      * Calls {{.Method}} {{.Path}}
-     * {{with .PathParams}}{{range .}}
-     * @param {{ "{" }}{{jsDocType .Schema}}{{ "}" }} {{.Name}} - Path parameter '{{.Name}}'{{end}}{{end}}
-     * {{with .QueryParams}}{{range .}}
-     * @param {{ "{" }}{{jsDocType .Schema}}{{ "}" }} [{{.Name}}] - Query parameter '{{.Name}}'{{end}}{{end}}
-     * {{with .HeaderParams}}{{range .}}
-     * @param {{ "{" }}{{jsDocType .Schema}}{{ "}" }} [{{.Name}}] - Header parameter '{{.Name}}'{{end}}{{end}}
-
-     * {{if .HasBody}}@param {Object} body - Request body (JSON){{end}}
+     {{with .PathParams}}{{range .}}
+     * @param {{"{"}} {{jsDocType .Schema}} {{"}"}} {{.Name}} - Path parameter '{{.Name}}'
+     {{end}}{{end}}{{with .QueryParams}}{{range .}}
+     * @param {{"{"}} {{jsDocType .Schema}} {{"}"}} [{{.Name}}] - Query parameter '{{.Name}}'
+     {{end}}{{end}}{{with .HeaderParams}}{{range .}}
+     * @param {{"{"}} {{jsDocType .Schema}} {{"}"}} [{{.Name}}] - Header parameter '{{.Name}}'
+     {{end}}{{end}}
+     {{if .HasBody}}* @param {{"{"}} {{.FunctionName}}Request {{"}"}} body - Request body instance
+     {{end}}
      * @returns {Promise<any>}
      */
-    {{.FunctionName}}({{jsParams .}}) { /* eslint-disable-next-line no-unused-vars */
-      let path = {{interpolatePath .Path .PathParams}};
-      const urlParams = new URLSearchParams(); // Always declare urlParams here
-      {{queryParamsAppends .QueryParams}} // Call the new helper for append calls
-      const requestHeaders = {{headersObject .HeaderParams}};
+    {{.FunctionName}}({{jsParams .}}) {
+      let path = {{interpolatePath .Path .PathParams}}
+      const urlParams = new URLSearchParams()
+      {{queryParamsAppends .QueryParams}}
+      {{with .PathParams}}{{range .}}urlParams.set("{{.Name}}",{{.Name}})
+      {{end}}{{end}}
 
-      // Append query parameters if any
-      if (urlParams.toString()) { // Simplified check because urlParams is always defined
-          {{with .PathParams}}{{range .}}urlParams.set("{{.Name}}",{{.Name}})
-          {{end}}{{end}}
-          path += '?' + urlParams.toString();
+      if (urlParams.toString()) {
+        path += `?${urlParams.toString()}`
       }
-
       const fetchOptions = {
         method: '{{.Method}}',
-        headers: requestHeaders,
-      };
-
-      {{if .HasBody}}
-      fetchOptions.body = JSON.stringify(body);
-      {{end}}
-
-      return this._fetch(path, fetchOptions);
+        headers: {{headersObject .HeaderParams}},
+        {{if .HasBody}}body: JSON.stringify(body.toJSON()),{{end}}
+      }
+      return this._fetch(path, fetchOptions)
     }
     {{end}}
   }
 
-  // Inject the API client instance into the Nuxt context
-  // It will be available as this.$api or useNuxtApp().$api
-  inject('{{.ApiName}}', new Client(baseURL, $config));
-}
+  // Provide the API client as ${{.ApiName}}
+  nuxtApp.provide('{{.ApiName}}', new {{.Name}}Client(baseURL, {
+    fetchOptions: {},
+    headers: {},
+  }))
+})

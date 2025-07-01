@@ -42,7 +42,10 @@ type Parameter struct {
 }
 
 type Schema struct {
-	Type string `yaml:"type"` // string, integer, boolean, array, object
+	Type        string            `yaml:"type"` // string, integer, boolean, array, object
+	Title       string            `yaml:"title"`
+	Description string            `yaml:"description"`
+	Properties  map[string]Schema `yaml:"properties"`
 	// Format, items, properties could be added
 }
 
@@ -68,15 +71,26 @@ type PluginTemplateData struct {
 }
 
 type EndpointData struct {
-	Method         string
-	Path           string
-	FunctionName   string
-	PathParams     []Parameter
-	QueryParams    []Parameter
-	HeaderParams   []Parameter
-	RequestBodyVar string
-	HasBody        bool
-	Security       []map[string][]string // Raw security data (can be used for auth logic)
+	Method            string
+	Path              string
+	FunctionName      string
+	PathParams        []Parameter
+	QueryParams       []Parameter
+	HeaderParams      []Parameter
+	RequestBodyVar    string
+	HasBody           bool
+	Security          []map[string][]string // Raw security data (can be used for auth logic)
+	RequestBodySchema RequestBodySchema
+}
+
+type Property struct {
+	Name        string
+	Schema      *Schema
+	Description string
+}
+
+type RequestBodySchema struct {
+	Properties []Property
 }
 
 func GenerateNuxt3Plugin(yamlFile []byte) (string, error) {
@@ -118,6 +132,17 @@ func GenerateNuxt3Plugin(yamlFile []byte) (string, error) {
 			if op.RequestBody != nil {
 				endpoint.HasBody = true
 				endpoint.RequestBodyVar = "body"
+
+				media := op.RequestBody.Content["application/json"]
+				schema := media.Schema
+				for propName, propSchemaRef := range schema.Properties {
+					p := Property{
+						Name:        propName,
+						Schema:      &propSchemaRef,
+						Description: propSchemaRef.Description,
+					}
+					endpoint.RequestBodySchema.Properties = append(endpoint.RequestBodySchema.Properties, p)
+				}
 			}
 
 			pluginData.Endpoints = append(pluginData.Endpoints, endpoint)
