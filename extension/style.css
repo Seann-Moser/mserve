@@ -1,0 +1,71 @@
+#er-overlay { position: fixed; top: 0; right: 0; background: rgba(0,0,0,0.1); z-index: 9999; }
+.er-highlight { outline: 2px solid #f00!important; cursor: crosshair; }
+
+
+#er-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 50%;
+  background: rgba(0,0,0,0.1);
+  z-index: 9999;
+}
+/* Light mode panel */
+#er-panel {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 300px;
+  max-height: 90%;
+  overflow: auto;
+  background: #fff;
+  color: #000;
+  padding: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  font-size: 14px;
+}
+/* * Dark mode overrides */
+@media (prefers-color-scheme: dark) {
+  .er-highlight {
+    outline: 2px solid #ff0 !important;
+  }
+  #er-overlay {
+    background: rgba(255,255,255,0.1);
+  }
+  #er-panel {
+    background: #2b2b2b;
+    color: #e0e0e0;
+    box-shadow: 0 0 10px rgba(0,0,0,0.7);
+  }
+  #er-panel select,
+  #er-panel input,
+  #er-panel textarea {
+    background: #3c3c3c;
+    color: #e0e0e0;
+    border: 1px solid #555;
+  }
+  #er-panel button {
+    background: #444;
+    color: #e0e0e0;
+    border: 1px solid #666;
+  }
+}
+#er-panel h3,
+#er-panel h4 {
+  margin: 5px 0;
+}
+#er-panel label {
+  display: block;
+  margin: 5px 0;
+}
+#er-panel select,
+#er-panel input,
+#er-output {
+  width: 100%;
+}
+#er-panel button {
+  margin: 5px 0;
+}
+#er-output {
+  height: 80px;
+}

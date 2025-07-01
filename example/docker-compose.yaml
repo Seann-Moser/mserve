@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # MongoDB Service
+  mongodb:
+    image: mongo:latest # Use the latest official MongoDB image
+    container_name: mongodb_container
+    ports:
+      - "27017:27017" # Map host port 27017 to container port 27017
+    environment:
+      # Optional: Set a MongoDB root username and password for security.
+      # IMPORTANT: Change these to strong, unique credentials in a production environment.
+      MONGO_INITDB_ROOT_USERNAME: mongoadmin
+      MONGO_INITDB_ROOT_PASSWORD: secretpassword
+    volumes:
+      # Persist MongoDB data outside the container
+      # This ensures your data is not lost if the container is removed
+      - mongodb_data:/data/db
+    restart: always # Ensure the container restarts if it crashes or Docker restarts
+
+  # Mongo Express Service (Web-based MongoDB Admin Interface)
+  mongo-express:
+    image: mongo-express:latest # Use the latest official Mongo Express image
+    container_name: mongo_express_container
+    ports:
+      - "8081:8081" # Map host port 8081 to container port 8081 (Mongo Express UI)
+    environment:
+      # Connect Mongo Express to your MongoDB container
+      ME_CONFIG_MONGODB_SERVER: mongodb # This should match the MongoDB service name
+      ME_CONFIG_MONGODB_PORT: 27017
+      # Use the same username and password set for MongoDB root user
+      ME_CONFIG_MONGODB_ADMINUSERNAME: mongoadmin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: secretpassword
+      # Optional: Set a custom username and password for accessing Mongo Express itself
+      # If not set, it will use the MongoDB credentials for basic auth.
+      # ME_CONFIG_BASICAUTH_USERNAME: me_user
+      # ME_CONFIG_BASICAUTH_PASSWORD: me_password
+    depends_on:
+      - mongodb # Ensure MongoDB starts before Mongo Express
+    restart: always # Ensure the container restarts if it crashes or Docker restarts
+
+volumes:
+  # Define the named volume for MongoDB data persistence
+  mongodb_data:
+    driver: local
