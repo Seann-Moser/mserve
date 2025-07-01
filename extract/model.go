@@ -9,7 +9,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"gopkg.in/yaml.v3"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -38,7 +37,7 @@ func SaveRulesToJSON(rules []*ExtractionRule, path string) error {
 
 // LoadRulesFromJSON reads a JSON file into rules.
 func LoadRulesFromJSON(path string) ([]*ExtractionRule, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +59,7 @@ func SaveRulesToYAML(rules []*ExtractionRule, path string) error {
 
 // LoadRulesFromYAML reads a YAML file into rules.
 func LoadRulesFromYAML(path string) ([]*ExtractionRule, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

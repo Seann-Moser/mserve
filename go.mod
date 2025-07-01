@@ -9,7 +9,6 @@ require (
 	github.com/caddyserver/certmagic v0.23.0
 	github.com/getkin/kin-openapi v0.132.0
 	github.com/go-webauthn/webauthn v0.13.0
-	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
@@ -18,6 +17,7 @@ require (
 	go.opentelemetry.io/otel v1.37.0
 	go.opentelemetry.io/otel/exporters/prometheus v0.59.0
 	go.opentelemetry.io/otel/sdk/metric v1.37.0
+	golang.org/x/text v0.26.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -38,6 +38,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.2 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/go-tpm v0.9.5 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
@@ -77,7 +78,6 @@ require (
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.15.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/text v0.26.0 // indirect
 	golang.org/x/tools v0.33.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )

@@ -56,7 +56,7 @@ func (e *Endpoint) Init(ctx context.Context, service string, manager *rbac.Manag
 	if manager == nil {
 		return nil
 	}
-	defaultRole, err := manager.Roles.GetRoleByName(ctx, "default")
+	defaultRole, _ := manager.Roles.GetRoleByName(ctx, "default")
 	if len(e.Roles) == 0 {
 		for _, m := range e.Methods {
 			p := &rbac.Permission{
@@ -65,7 +65,7 @@ func (e *Endpoint) Init(ctx context.Context, service string, manager *rbac.Manag
 				CreatedAt: time.Now().Unix(),
 			}
 			_ = manager.CreatePermission(ctx, p)
-			err = manager.AssignPermissionToRole(ctx, defaultRole.ID, p.ID)
+			err := manager.AssignPermissionToRole(ctx, defaultRole.ID, p.ID)
 			if err != nil {
 				continue
 			}
@@ -93,7 +93,7 @@ func (e *Endpoint) Init(ctx context.Context, service string, manager *rbac.Manag
 			}
 		}
 		if r == nil {
-			slog.Error("failed to find role %s", role.Role)
+			slog.Error("failed to find role", "role", role.Role)
 			continue
 		}
 		err = manager.AssignPermissionToRole(ctx, r.ID, p.ID)

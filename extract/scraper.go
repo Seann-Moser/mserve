@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -63,7 +64,12 @@ func downloadResource(rawURL string, saveDir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			slog.Error("Failed to close response body", "err", err)
+		}
+	}(resp.Body)
 	if resp.StatusCode != 200 {
 		return "", fmt.Errorf("bad status downloading %s: %d", rawURL, resp.StatusCode)
 	}
@@ -88,7 +94,9 @@ func downloadResource(rawURL string, saveDir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
 
 	if _, err := io.Copy(f, resp.Body); err != nil {
 		return "", err

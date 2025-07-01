@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -31,7 +32,12 @@ func (f *NativeFetcher) Fetch(pageURL string) (*goquery.Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			slog.Error("Error closing response body", "err", err)
+		}
+	}(resp.Body)
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("unexpected status: %d", resp.StatusCode)
 	}
@@ -54,7 +60,12 @@ func (f *ZenRowsFetcher) Fetch(pageURL string) (*goquery.Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			slog.Error("Error closing response body", "err", err)
+		}
+	}(resp.Body)
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("zenrows error status: %d", resp.StatusCode)
 	}
@@ -99,7 +110,12 @@ func (f *ScraperAPIFetcher) Fetch(pageURL string) (*goquery.Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			slog.Error("Error closing response body", "err", err)
+		}
+	}(resp.Body)
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("scraperapi error status: %d", resp.StatusCode)
@@ -196,7 +212,12 @@ func (f *OxylabsFetcher) Fetch(pageURL string) (*goquery.Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			slog.Error("Error closing response body", "err", err)
+		}
+	}(resp.Body)
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("oxylabs error status: %d", resp.StatusCode)
@@ -237,7 +258,12 @@ func (f *ScrapingBeeFetcher) Fetch(pageURL string) (*goquery.Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			slog.Error("Error closing response body", "err", err)
+		}
+	}(resp.Body)
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("scrapingbee error status: %d", resp.StatusCode)
@@ -312,7 +338,12 @@ func (f *BrightDataFetcher) Fetch(pageURL string) (*goquery.Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			slog.Error("Error closing response body", "err", err)
+		}
+	}(resp.Body)
 
 	if resp.StatusCode != 200 {
 		// Bright Data's API might return JSON errors, you might want to parse them.

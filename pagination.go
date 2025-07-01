@@ -116,30 +116,6 @@ func PaginateMongo[T any](
 		TotalPages: totalPages,
 	}, nil
 }
-func PaginateRaw[T any](items []T, page, limit, total int) (Page[T], error) {
-	if page < 1 || limit < 1 {
-		return Page[T]{}, errors.New("page and limit must be >= 1")
-	}
-
-	totalPages := int(math.Ceil(float64(total) / float64(limit)))
-	// clamp start/end
-	start := (page - 1) * limit
-	if start > total {
-		start = total
-	}
-	end := start + limit
-	if end > total {
-		end = total
-	}
-
-	return Page[T]{
-		Items:      items,
-		Page:       page,
-		Limit:      limit,
-		Total:      total,
-		TotalPages: totalPages,
-	}, nil
-}
 
 // QueryParams extracts page & limit from the URL, with defaults.
 func QueryParams(r *http.Request, defaultLimit int) (page, limit int) {

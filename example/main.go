@@ -9,7 +9,6 @@ import (
 	"github.com/Seann-Moser/credentials/user"
 	"github.com/Seann-Moser/mserve"
 	"github.com/Seann-Moser/rbac"
-	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
@@ -34,18 +33,18 @@ func main() {
 		log.Fatal(err)
 	}
 	oServer := oserver.NewMongoServer(mongoDB.Database("local"))
-	oServer.RegisterClient(ctx, &oserver.OAuthClient{
-		ClientID:           uuid.New().String(),
-		ClientSecret:       uuid.New().String(),
-		Name:               "Test",
-		ImageURL:           "",
-		RedirectURIs:       []string{"localhost:8080"},
-		Scopes:             nil,
-		TokenEndpointAuth:  "",
-		GrantTypes:         nil,
-		ResponseTypes:      nil,
-		ConnectedUserCount: 0,
-	})
+	//_,_ = oServer.RegisterClient(ctx, &oserver.OAuthClient{
+	//	ClientID:           uuid.New().String(),
+	//	ClientSecret:       uuid.New().String(),
+	//	Name:               "Test",
+	//	ImageURL:           "",
+	//	RedirectURIs:       []string{"localhost:8080"},
+	//	Scopes:             nil,
+	//	TokenEndpointAuth:  "",
+	//	GrantTypes:         nil,
+	//	ResponseTypes:      nil,
+	//	ConnectedUserCount: 0,
+	//})
 	ses := session.NewClient(oServer, rbacManager, secret, 24*time.Hour)
 	s := mserve.NewServer("Example", rbacManager, []string{}, ses, mserve.SSLConfig{Port: 8080})
 

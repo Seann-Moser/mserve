@@ -3,12 +3,13 @@ package nuxt3FromOpenApi
 import (
 	_ "embed"
 	"fmt"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+	"gopkg.in/yaml.v3" // Make sure you have this dependency: go get gopkg.in/yaml.v3
 	"strings"
 	"text/template"
 	"unicode"
 	"unicode/utf8"
-
-	"gopkg.in/yaml.v3" // Make sure you have this dependency: go get gopkg.in/yaml.v3
 )
 
 // --- Go Structs for OpenAPI YAML Parsing ---
@@ -201,13 +202,18 @@ func generateFunctionName(method, path string) string {
 	for _, part := range parts {
 		if strings.HasPrefix(part, "{") && strings.HasSuffix(part, "}") {
 			paramName := strings.Trim(part, "{}")
-			nameParts = append(nameParts, "By"+strings.Title(paramName))
+			nameParts = append(nameParts, "By"+Title(paramName))
 		} else if part != "" {
-			nameParts = append(nameParts, strings.Title(part))
+			nameParts = append(nameParts, Title(part))
 		}
 	}
 	name := strings.ToLower(method) + strings.Join(nameParts, "")
 	return name
+}
+func Title(s string) string {
+	// Create a caser for title-casing, using Unicode rules
+	caser := cases.Title(language.English)
+	return caser.String(s)
 }
 
 // --- JavaScript Template Generation Functions ---
