@@ -228,13 +228,16 @@ func makeUserEndpoints(u *user.Server) []*Endpoint {
 		{
 			Handler: u.FinishPasskeyRegistrationHandler,
 			Path:    "/user/finish_passkey",
-			Methods: []string{http.MethodGet},
+			Methods: []string{http.MethodPost},
 			Responses: []Response{
 				{
 					Status: http.StatusOK,
 				},
 				{Status: http.StatusUnauthorized},
 				{Status: http.StatusInternalServerError},
+			},
+			Request: Request{
+				Body: protocol.CredentialCreationResponse{},
 			},
 		},
 		{
@@ -264,7 +267,8 @@ func makeUserEndpoints(u *user.Server) []*Endpoint {
 			Methods: []string{http.MethodPost},
 			Request: Request{Headers: map[string]ROption{
 				"X-WebAuthn-Session-ID": {},
-			}},
+			},
+				Body: protocol.CredentialAssertionResponse{}},
 			Responses: []Response{
 				{
 					Status: http.StatusOK,

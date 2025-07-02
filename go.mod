@@ -4,12 +4,11 @@ go 1.24.4
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.3
-	github.com/Seann-Moser/credentials v0.0.10
+	github.com/Seann-Moser/credentials v0.0.16
 	github.com/Seann-Moser/rbac v1.0.9
 	github.com/caddyserver/certmagic v0.23.0
 	github.com/getkin/kin-openapi v0.132.0
 	github.com/go-webauthn/webauthn v0.13.0
-	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	go.mongodb.org/mongo-driver v1.17.4

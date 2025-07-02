@@ -48,7 +48,7 @@ func main() {
 	ses := session.NewClient(oServer, rbacManager, secret, 24*time.Hour)
 	s := mserve.NewServer("Example", rbacManager, []string{}, ses, mserve.SSLConfig{Port: 8080})
 
-	userServer, err := user.NewServer(user.NewMongoDBStore(mongoDB, "local", "user"), rbacManager, secret, "", "", "")
+	userServer, err := user.NewServer(user.NewMongoDBStore(mongoDB, "local", "user"), rbacManager, secret, "example.com", "Example", "https://dev.example.com:3000")
 	if err != nil {
 		log.Fatal(err)
 	}

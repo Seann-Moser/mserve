@@ -75,8 +75,9 @@ func corsMiddleware(next http.Handler) http.Handler {
 		// Change "*" to a specific origin in prod!
 		w.Header().Set("Access-Control-Allow-Origin", getOrigin(r))
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-WebAuthn-Session-ID")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Add("Access-Control-Expose-Headers", "X-WebAuthn-Session-ID")
 		// handle preflight
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)

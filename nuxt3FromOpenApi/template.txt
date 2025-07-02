@@ -8,6 +8,32 @@
  */
 import { defineNuxtPlugin, useRuntimeConfig } from '#app'
 
+function classToObject(instance) {
+  const seen = new WeakSet();
+
+  function recurse(obj) {
+    if (obj && typeof obj === "object") {
+      if (seen.has(obj)) return;     // break the cycle
+      seen.add(obj);
+      if (Array.isArray(obj)) {
+        return obj.map(recurse);
+      }
+      const result = {};
+      for (const key of Object.getOwnPropertyNames(obj)) {
+        result[key] = recurse(obj[key]);
+      }
+      return result;
+    }
+    return obj;                       // primitive or function
+  }
+
+  // copy own + prototype methods if you need them…
+  const data = recurse(instance);
+  // (plus any method-binding logic from before)
+  return data;
+}
+
+
 // --- Generated Request Body Classes ---
 {{range .Endpoints}}{{if .HasBody}}
 /**
@@ -30,14 +56,6 @@ export class {{.FunctionName}}Request {
   constructor(init = {}) {
     Object.assign(this, init)
   }
-
-  /**
-   * Serialize this instance to JSON for API calls
-   * @returns {Object}
-   */
-  toJSON() {
-    return { ...this }
-  }
 }
 {{end}}{{end}}
 
@@ -54,49 +72,53 @@ export default defineNuxtPlugin((nuxtApp) => {
       this.globalOptions = globalOptions
     }
 
-    _fetch(urlPath, fetchOptions) {
+    _fetch(urlPath, fetchOptions = {}) {
       const fullUrl = new URL(urlPath, this.baseURL).toString();
 
-      return fetch(fullUrl, {
+      // Destructure out body so we can conditionally re-attach it
+      const { body, headers: customHeaders = {}, method = 'GET', ...rest } = fetchOptions;
+      const upperMethod = method.toUpperCase();
+
+      // Only serialize & send a body on methods that allow it
+      const hasBody = body != null && !['GET', 'HEAD'].includes(upperMethod);
+
+      // Build headers: only add Content-Type if there’s a real body
+      const headers = {
+        ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+        ...this.globalOptions.headers,
+        ...customHeaders,
+      };
+
+      const init = {
         ...this.globalOptions.fetchOptions,
-        ...fetchOptions,
-        headers: {
-          ...(fetchOptions.body ? { 'Content-Type': 'application/json' } : {}),
-          ...this.globalOptions.headers,
-          ...fetchOptions.headers,
-        },
-      })
-      // first, check for HTTP errors
-      .then(response => {
-        if (!response.ok) {
-          const contentType = response.headers.get('content-type') || '';
-          if (contentType.includes('application/json')) {
-            return response.json()
-              .catch(() => ({}))
-              .then(errData => {
-                throw new Error(errData.message || response.statusText || `API request failed with status ${response.status}`);
-              });
+        ...rest,
+        method: upperMethod,
+        headers,
+        ...(hasBody ? { body: JSON.stringify(body) } : {}),
+      };
+      init["credentials"] = "include"
+
+      return fetch(fullUrl, init)
+        // first, check for HTTP errors
+        .then(response => {
+          if (!response.ok) {
+            const ct = response.headers.get('content-type') || '';
+            if (ct.includes('application/json')) {
+              return response.json().catch(() => ({}))
+                .then(errData => { throw new Error(errData.message || response.statusText); });
+            }
+            return response.text()
+              .then(text => { throw new Error(text || response.statusText); });
           }
-          return response.text()
-            .then(text => {
-              throw new Error(text || response.statusText || `API request failed with status ${response.status}`);
-            });
-        }
-        return response;
-      })
-      // parse the successful response
-      .then(response => {
-        const contentType = response.headers.get('content-type') || '';
-        return contentType.includes('application/json')
-          ? response.json()
-          : response.text();
-      })
-      // catch & rethrow (after logging)
-      .catch(error => {
-        console.error('API Error:', error);
-        return Promise.reject(error);
-      });
+          const data =  response.json();
+          // Turn the Headers into a plain object
+          const headers = Object.fromEntries(response.headers.entries());
+
+          // Merge and return
+          return { ...data, headers };
+        });
     }
+
 
 
     {{range .Endpoints}}
@@ -126,7 +148,7 @@ export default defineNuxtPlugin((nuxtApp) => {
       const fetchOptions = {
         method: '{{.Method}}',
         headers: {{headersObject .HeaderParams}},
-        {{if .HasBody}}body: JSON.stringify(body.toJSON()),{{end}}
+        {{if .HasBody}}body: classToObject(body),{{end}}
       }
       return this._fetch(path, fetchOptions)
     }
