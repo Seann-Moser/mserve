@@ -100,7 +100,7 @@ export default defineNuxtPlugin((nuxtApp) => {
 
       return fetch(fullUrl, init)
         // first, check for HTTP errors
-        .then(response => {
+        .then( async response => {
           if (!response.ok) {
             const ct = response.headers.get('content-type') || '';
             if (ct.includes('application/json')) {
@@ -110,12 +110,12 @@ export default defineNuxtPlugin((nuxtApp) => {
             return response.text()
               .then(text => { throw new Error(text || response.statusText); });
           }
-          const data =  response.json();
+          const data = await response.json();
           // Turn the Headers into a plain object
           const headers = Object.fromEntries(response.headers.entries());
 
           // Merge and return
-          return { ...data, headers };
+          return {...data, headers};
         });
     }
 

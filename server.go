@@ -139,11 +139,50 @@ func (s *Server) getOrigins() []string {
 	return append([]string(nil), s.allowedOrigins...)
 }
 
+func pathToTitle(path string) string {
+	// 1) Trim any leading/trailing slashes
+	s := strings.Trim(path, "/")
+
+	// 2) Split on "/", "-", or "_" into words
+	words := strings.FieldsFunc(s, func(r rune) bool {
+		return r == '/' || r == '-' || r == '_'
+	})
+
+	// 3) Title-case each word (ASCII-only)
+	for i, w := range words {
+		if w == "" {
+			continue
+		}
+		// Uppercase first byte, lowercase the rest
+		words[i] = strings.ToUpper(w[:1]) + strings.ToLower(w[1:])
+	}
+
+	// 4) Join back together with spaces
+	return strings.Join(words, " ")
+}
+
 // AddEndpoints registers endpoints on the router
 func (s *Server) AddEndpoints(ctx context.Context, endpoints ...*Endpoint) error {
 	//s.sessionClient.Authenticate()
 	//session.SetSessionCookie()
 	for _, e := range endpoints {
+		if e.Path == "" {
+			return fmt.Errorf("empty path")
+		}
+		if e.Handler == nil {
+			return fmt.Errorf("nil handler")
+		}
+		if e.Name == "" {
+			e.Name = pathToTitle(e.Path)
+		}
+		if e.Methods == nil {
+			e.Methods = []string{}
+			if e.Request.Body != nil {
+				e.Methods = append(e.Methods, http.MethodPost)
+			} else {
+				e.Methods = append(e.Methods, http.MethodGet)
+			}
+		}
 		handler := e.Handler
 		err := e.Init(ctx, s.ServiceName, s.rbac)
 		if err != nil {

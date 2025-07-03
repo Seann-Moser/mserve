@@ -308,6 +308,26 @@ func makeUserEndpoints(u *user.Server) []*Endpoint {
 			},
 		},
 		{
+			Handler: u.QRCode,
+			Path:    "/user/generate/qrcode",
+			Methods: []string{http.MethodGet},
+			Request: Request{
+				Params: map[string]ROption{
+					"u": {
+						Required: true,
+					},
+				},
+			},
+			Responses: []Response{
+				{
+					Status: http.StatusOK,
+				},
+				{Status: http.StatusUnauthorized},
+				{Status: http.StatusForbidden},
+				{Status: http.StatusInternalServerError},
+			},
+		},
+		{
 			Handler: u.VerifyAndEnableTOTPHandler,
 			Path:    "/user/verify/totp",
 			Methods: []string{http.MethodPost},
