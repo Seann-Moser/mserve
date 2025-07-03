@@ -178,6 +178,11 @@ func makeUserEndpoints(u *user.Server) []*Endpoint {
 				{Status: http.StatusBadRequest},
 				{Status: http.StatusInternalServerError},
 			},
+			Roles: []Role{
+				{
+					Role: "user",
+				},
+			},
 		},
 		{
 			Handler: u.ManageUserHandler,
@@ -192,6 +197,11 @@ func makeUserEndpoints(u *user.Server) []*Endpoint {
 				},
 				{Status: http.StatusBadRequest},
 				{Status: http.StatusInternalServerError},
+			},
+			Roles: []Role{
+				{
+					Role: "user",
+				},
 			},
 		},
 		{
@@ -208,11 +218,16 @@ func makeUserEndpoints(u *user.Server) []*Endpoint {
 				{Status: http.StatusBadRequest},
 				{Status: http.StatusInternalServerError},
 			},
+			Roles: []Role{
+				{
+					Role: "user",
+				},
+			},
 		},
 		{
 			Handler: u.BeginPasskeyRegistrationHandler,
 			Path:    "/user/begin_passkey",
-			Methods: []string{http.MethodGet},
+			Methods: []string{http.MethodPost},
 			Request: Request{
 				Body: user.BeginPasskeyRegistrationRequest{},
 			},
@@ -223,6 +238,11 @@ func makeUserEndpoints(u *user.Server) []*Endpoint {
 				},
 				{Status: http.StatusUnauthorized},
 				{Status: http.StatusInternalServerError},
+			},
+			Roles: []Role{
+				{
+					Role: "user",
+				},
 			},
 		},
 		{
@@ -238,6 +258,11 @@ func makeUserEndpoints(u *user.Server) []*Endpoint {
 			},
 			Request: Request{
 				Body: protocol.CredentialCreationResponse{},
+			},
+			Roles: []Role{
+				{
+					Role: "user",
+				},
 			},
 		},
 		{
@@ -291,6 +316,11 @@ func makeUserEndpoints(u *user.Server) []*Endpoint {
 				{Status: http.StatusUnauthorized},
 				{Status: http.StatusForbidden},
 				{Status: http.StatusInternalServerError},
+			},
+			Roles: []Role{
+				{
+					Role: "user",
+				},
 			},
 		},
 		{
@@ -355,6 +385,11 @@ func makeUserEndpoints(u *user.Server) []*Endpoint {
 				{Status: http.StatusForbidden},
 				{Status: http.StatusInternalServerError},
 			},
+			Roles: []Role{
+				{
+					Role: "user",
+				},
+			},
 		},
 		{
 			Handler: u.GetUser,
@@ -368,6 +403,11 @@ func makeUserEndpoints(u *user.Server) []*Endpoint {
 				{Status: http.StatusUnauthorized},
 				{Status: http.StatusForbidden},
 				{Status: http.StatusInternalServerError},
+			},
+			Roles: []Role{
+				{
+					Role: "user",
+				},
 			},
 		},
 	}
