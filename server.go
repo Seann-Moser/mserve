@@ -140,16 +140,6 @@ func (s *Server) AddOrigin(origin string) {
 	s.allowedOrigins = append(s.allowedOrigins, origin)
 }
 
-// getOrigins returns allowed origins safely
-func (s *Server) getOrigins() []string {
-	s.muOrigins.RLock()
-	defer s.muOrigins.RUnlock()
-	if len(s.allowedOrigins) == 0 {
-		return []string{"*"}
-	}
-	return append([]string(nil), s.allowedOrigins...)
-}
-
 func pathToTitle(path string) string {
 	// 1) Trim any leading/trailing slashes
 	s := strings.Trim(path, "/")
