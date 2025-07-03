@@ -56,8 +56,7 @@ func NewServer(serviceName string, r *rbac.Manager, domains []string, sessionCli
 	if serviceName == "" {
 		serviceName = "default"
 	}
-	router.Use(corsMiddleware)
-	return &Server{
+	s := &Server{
 		rbac:           r,
 		ServiceName:    serviceName,
 		router:         router,
@@ -68,12 +67,24 @@ func NewServer(serviceName string, r *rbac.Manager, domains []string, sessionCli
 		goCache:        goCache.New(time.Minute*5, time.Minute),
 		SSLConfig:      ssl,
 	}
+	router.Use(s.corsMiddleware)
+	return s
 }
 
-func corsMiddleware(next http.Handler) http.Handler {
+func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Change "*" to a specific origin in prod!
-		w.Header().Set("Access-Control-Allow-Origin", getOrigin(r))
+		var origin string
+		if o, err := s.matchOrigin(r); err != nil {
+			if len(s.allowedOrigins) > 0 {
+				origin = s.allowedOrigins[0]
+			} else {
+				origin = "127.0.0.1"
+			}
+		} else {
+			origin = o
+		}
+		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-WebAuthn-Session-ID")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
