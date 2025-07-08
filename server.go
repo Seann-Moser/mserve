@@ -271,8 +271,12 @@ func (s *Server) SetupOServer(ctx context.Context, o oserver.OServer) *Server {
 	s.AddMiddleware(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			usersession, ctx, _ := s.sessionClient.Authenticate(w, r)
-			if !s.hasAccess(ctx, endpointResourceName(s.ServiceName, r.URL.Path), usersession.UserID, usersession.AccountID, r.Method) {
-				http.Error(w, "forbidden", http.StatusForbidden)
+			p := r.URL.Path
+			for k, v := range mux.Vars(r) {
+				p = strings.ReplaceAll(p, "/"+v, "/{"+k+"}")
+			}
+			if !s.hasAccess(ctx, endpointResourceName(s.ServiceName, p), usersession.UserID, usersession.AccountID, r.Method) {
+				http.Error(w, "forbidden "+p, http.StatusForbidden)
 				return
 			}
 			next.ServeHTTP(w, r.WithContext(ctx))
