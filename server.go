@@ -13,6 +13,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -55,6 +56,9 @@ func NewServer(serviceName string, r *rbac.Manager, domains []string, sessionCli
 	router := mux.NewRouter()
 	if serviceName == "" {
 		serviceName = "default"
+	}
+	if ssl.DefaultHostName == "" {
+		ssl.DefaultHostName = "localhost"
 	}
 	s := &Server{
 		rbac:           r,
@@ -209,42 +213,41 @@ func (s *Server) setupMetrics(ctx context.Context) error {
 }
 
 type SSLConfig struct {
-	Email   string
-	Agreed  bool
-	Enabled bool
-	Port    int
+	Email           string
+	Agreed          bool
+	Enabled         bool
+	Port            int
+	DefaultHostName string
 }
 
 // Run starts the server with CertMagic and OpenTelemetry
 func (s *Server) Run(ctx context.Context) error {
-
 	certmagic.DefaultACME.Agreed = s.SSLConfig.Agreed
 	certmagic.DefaultACME.Email = s.SSLConfig.Email
-
 	if err := s.setupMetrics(ctx); err != nil {
-		log.Fatalf("failed to setup metrics: %v", err)
+		slog.Error("Failed to setup metrics", "error", err)
+		return err
 	}
-
 	rootHandler := otelhttp.NewHandler(s.router, "http-server")
-
 	go func() {
-		slog.Info("starting https server")
 		if !s.SSLConfig.Enabled {
 			if s.SSLConfig.Port <= 0 {
 				s.SSLConfig.Port = 8081
 			}
+			slog.Info("starting http server",
+				"host", "http://"+s.SSLConfig.DefaultHostName+":"+strconv.Itoa(s.SSLConfig.Port))
 			if err := http.ListenAndServe(":"+strconv.Itoa(s.SSLConfig.Port), rootHandler); err != nil {
 				log.Fatalf("failed to start https server: %v", err)
 			}
 			return
 		}
+		slog.Info("starting https server")
 		if err := certmagic.HTTPS(s.domains, rootHandler); err != nil {
 			log.Fatalf("CertMagic HTTPS failed: %v", err)
 		}
 	}()
-
 	<-ctx.Done()
-	log.Println("Shutting down server")
+	slog.Info("shutting down")
 	return nil
 }
 
@@ -289,6 +292,17 @@ func (s *Server) SetupOServer(ctx context.Context, o oserver.OServer) *Server {
 		slog.Error("failed adding o server endpoints", "err", err)
 	}
 
+	return s
+}
+
+func (s *Server) SetupSlog(level slog.Level) *Server {
+	opts := &slog.HandlerOptions{
+		Level: level, // reads the value each log call
+	}
+	h := NewStackHandler(slog.NewTextHandler(os.Stdout, opts))
+	// 2. Set as global
+	_ = slog.SetLogLoggerLevel(slog.LevelDebug)
+	slog.SetDefault(slog.New(h))
 	return s
 }
 
@@ -365,7 +379,7 @@ func (s *Server) GenerateOpenAPIDocs() *Server {
 				_, writeErr := w.Write(d)
 				if writeErr != nil {
 					http.Error(w, "Failed to write JSON: "+writeErr.Error(), http.StatusInternalServerError)
-					log.Printf("Error writing JSON: %v", writeErr)
+					slog.Error("Error writing JSON", "err", writeErr)
 				}
 			case "yaml":
 				d, err := api.MarshalYAML()
@@ -382,7 +396,7 @@ func (s *Server) GenerateOpenAPIDocs() *Server {
 				_, writeErr := w.Write(raw)
 				if writeErr != nil {
 					http.Error(w, "Failed to write YAML: "+writeErr.Error(), http.StatusInternalServerError)
-					log.Printf("Error writing YAML: %v", writeErr)
+					slog.Error("Error writing YAML", "err", writeErr)
 				}
 			default:
 				// Serve Swagger UI HTML
@@ -394,7 +408,7 @@ func (s *Server) GenerateOpenAPIDocs() *Server {
 				}
 				if err := swaggerUITmpl.Execute(w, data); err != nil {
 					http.Error(w, "Failed to render Swagger UI: "+err.Error(), http.StatusInternalServerError)
-					log.Printf("Error rendering Swagger UI: %v", err)
+					slog.Error("Error writing Swagger UI", "err", err)
 				}
 			}
 		},
