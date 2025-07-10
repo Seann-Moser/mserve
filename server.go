@@ -8,6 +8,7 @@ import (
 	"github.com/Seann-Moser/credentials/oauth/oserver"
 	"github.com/Seann-Moser/mserve/nuxt3FromOpenApi"
 	"github.com/Seann-Moser/rbac/rbacServer"
+	"go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
 	"html/template"
 	"log"
@@ -26,9 +27,8 @@ import (
 	"github.com/caddyserver/certmagic"
 	"github.com/gorilla/mux"
 	goCache "github.com/patrickmn/go-cache"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/sdk/metric"
 )
 
@@ -49,6 +49,8 @@ type Server struct {
 	SSLConfig       SSLConfig
 	healthCheckPath string
 	endpoints       []Endpoint
+	tp              *trace.TracerProvider
+	mr              *metric.MeterProvider
 }
 
 // NewServer creates a new Server instance
@@ -200,16 +202,22 @@ func (s *Server) AddEndpoints(ctx context.Context, endpoints ...*Endpoint) error
 	return nil
 }
 
-// setupMetrics initializes OpenTelemetry metrics and mounts /metrics endpoint
-func (s *Server) setupMetrics(ctx context.Context) error {
-	exporter, err := prometheus.New(prometheus.WithNamespace(""))
+// OTEL_METRICS_EXPORTER
+// OTEL_EXPORTER_OTLP_PROTOCOL
+// OTEL_EXPORTER_OTLP_METRICS_PROTOCOL
+// OTEL_EXPORTER_PROMETHEUS_HOST
+// OTEL_EXPORTER_PROMETHEUS_PORT
+// SetupMetrics initializes OpenTelemetry metrics and mounts /metrics endpoint
+func (s *Server) SetupMetrics() *Server {
+	tp, mr, err := initTracer()
 	if err != nil {
-		return err
+		slog.Error("failed to init tracer", "error", err)
+		return s
 	}
-	provider := metric.NewMeterProvider(metric.WithReader(exporter))
-	otel.SetMeterProvider(provider)
-	//s.router.Handle("/metrics", exporter)
-	return nil
+	s.router.Use(otelmux.Middleware(s.ServiceName))
+	s.tp = tp
+	s.mr = mr
+	return s
 }
 
 type SSLConfig struct {
@@ -224,10 +232,6 @@ type SSLConfig struct {
 func (s *Server) Run(ctx context.Context) error {
 	certmagic.DefaultACME.Agreed = s.SSLConfig.Agreed
 	certmagic.DefaultACME.Email = s.SSLConfig.Email
-	if err := s.setupMetrics(ctx); err != nil {
-		slog.Error("Failed to setup metrics", "error", err)
-		return err
-	}
 	rootHandler := otelhttp.NewHandler(s.router, "http-server")
 	go func() {
 		if !s.SSLConfig.Enabled {
@@ -248,6 +252,12 @@ func (s *Server) Run(ctx context.Context) error {
 	}()
 	<-ctx.Done()
 	slog.Info("shutting down")
+	if s.tp != nil {
+		_ = s.tp.Shutdown(context.Background())
+	}
+	if s.mr != nil {
+		_ = s.mr.Shutdown(context.Background())
+	}
 	return nil
 }
 
