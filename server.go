@@ -18,7 +18,6 @@ import (
 	"github.com/Seann-Moser/credentials/oauth/oserver"
 	"github.com/Seann-Moser/mserve/nuxt3FromOpenApi"
 	"github.com/Seann-Moser/rbac/rbacServer"
-	"go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
 
 	"github.com/Seann-Moser/credentials/session"
@@ -28,8 +27,6 @@ import (
 	"github.com/caddyserver/certmagic"
 	"github.com/gorilla/mux"
 	goCache "github.com/patrickmn/go-cache"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/sdk/metric"
 )
 
@@ -50,9 +47,9 @@ type Server struct {
 	SSLConfig       SSLConfig
 	healthCheckPath string
 	endpoints       []Endpoint
-	tp              *trace.TracerProvider
-	mr              *metric.MeterProvider
-	rootEnabled     bool
+	//tp              *trace.TracerProvider
+	mr          *metric.MeterProvider
+	rootEnabled bool
 }
 
 // NewServer creates a new Server instance
@@ -211,14 +208,14 @@ func (s *Server) AddEndpoints(ctx context.Context, endpoints ...*Endpoint) error
 // OTEL_EXPORTER_PROMETHEUS_PORT
 // SetupMetrics initializes OpenTelemetry metrics and mounts /metrics endpoint
 func (s *Server) SetupMetrics() *Server {
-	tp, mr, err := initTracer()
-	if err != nil {
-		slog.Error("failed to init tracer", "error", err)
-		return s
-	}
-	s.router.Use(otelmux.Middleware(s.ServiceName))
-	s.tp = tp
-	s.mr = mr
+	//tp, mr, err := initTracer()
+	//if err != nil {
+	//	slog.Error("failed to init tracer", "error", err)
+	//	return s
+	//}
+	//s.router.Use(otelmux.Middleware(s.ServiceName))
+	//s.tp = tp
+	//s.mr = mr
 	return s
 }
 
@@ -234,7 +231,8 @@ type SSLConfig struct {
 func (s *Server) Run(ctx context.Context) error {
 	certmagic.DefaultACME.Agreed = s.SSLConfig.Agreed
 	certmagic.DefaultACME.Email = s.SSLConfig.Email
-	rootHandler := otelhttp.NewHandler(s.router, "http-server")
+	rootHandler := s.router
+	//rootHandler := otelhttp.NewHandler(s.router, "http-server")
 	go func() {
 		if !s.SSLConfig.Enabled {
 			if s.SSLConfig.Port <= 0 {
@@ -254,9 +252,9 @@ func (s *Server) Run(ctx context.Context) error {
 	}()
 	<-ctx.Done()
 	slog.Info("shutting down")
-	if s.tp != nil {
-		_ = s.tp.Shutdown(context.Background())
-	}
+	//if s.tp != nil {
+	//	_ = s.tp.Shutdown(context.Background())
+	//}
 	if s.mr != nil {
 		_ = s.mr.Shutdown(context.Background())
 	}
