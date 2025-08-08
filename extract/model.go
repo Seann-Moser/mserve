@@ -4,26 +4,33 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"gopkg.in/yaml.v3"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"gopkg.in/yaml.v3"
 )
 
 // ExtractionRule describes how to extract one or more fields.
 type ExtractionRule struct {
-	Name     string            `json:"name" yaml:"name" bson:"name"`
-	Selector string            `json:"selector" yaml:"selector" bson:"selector"`
-	Attr     string            `json:"attr,omitempty" yaml:"attr,omitempty" bson:"attr,omitempty"`
-	Multiple bool              `json:"multiple,omitempty" yaml:"multiple,omitempty" bson:"multiple,omitempty"`
-	Download bool              `json:"download,omitempty" yaml:"download,omitempty" bson:"download,omitempty"`
-	Flatten  bool              `json:"flatten,omitempty" yaml:"flatten,omitempty" bson:"flatten,omitempty"`
-	SaveDir  string            `json:"save_dir,omitempty" yaml:"save_dir,omitempty" bson:"save_dir,omitempty"`
-	Children []*ExtractionRule `json:"children,omitempty" yaml:"children,omitempty" bson:"children,omitempty"`
+	Name       string            `json:"name" yaml:"name" bson:"name"`
+	Selector   string            `json:"selector" yaml:"selector" bson:"selector"`
+	Attr       string            `json:"attr,omitempty" yaml:"attr,omitempty" bson:"attr,omitempty"`
+	Multiple   bool              `json:"multiple,omitempty" yaml:"multiple,omitempty" bson:"multiple,omitempty"`
+	Download   bool              `json:"download,omitempty" yaml:"download,omitempty" bson:"download,omitempty"`
+	Flatten    bool              `json:"flatten,omitempty" yaml:"flatten,omitempty" bson:"flatten,omitempty"`
+	SaveDir    string            `json:"save_dir,omitempty" yaml:"save_dir,omitempty" bson:"save_dir,omitempty"`
+	Children   []*ExtractionRule `json:"children,omitempty" yaml:"children,omitempty" bson:"children,omitempty"`
+	Transforms []*Transforms     `json:"transforms,omitempty" yaml:"transforms,omitempty" bson:"transforms,omitempty"`
+}
+type Transforms struct {
+	Match   string `json:"match"`
+	Split   bool   `json:"split"`
+	Replace string `json:"replace"`
 }
 
 // SaveRulesToJSON writes rules as a single JSON array.

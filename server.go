@@ -4,12 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"github.com/Seann-Moser/credentials/oauth/oclient"
-	"github.com/Seann-Moser/credentials/oauth/oserver"
-	"github.com/Seann-Moser/mserve/nuxt3FromOpenApi"
-	"github.com/Seann-Moser/rbac/rbacServer"
-	"go.opentelemetry.io/otel/sdk/trace"
-	"gopkg.in/yaml.v3"
 	"html/template"
 	"log"
 	"log/slog"
@@ -19,6 +13,13 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Seann-Moser/credentials/oauth/oclient"
+	"github.com/Seann-Moser/credentials/oauth/oserver"
+	"github.com/Seann-Moser/mserve/nuxt3FromOpenApi"
+	"github.com/Seann-Moser/rbac/rbacServer"
+	"go.opentelemetry.io/otel/sdk/trace"
+	"gopkg.in/yaml.v3"
 
 	"github.com/Seann-Moser/credentials/session"
 
@@ -51,6 +52,7 @@ type Server struct {
 	endpoints       []Endpoint
 	tp              *trace.TracerProvider
 	mr              *metric.MeterProvider
+	rootEnabled     bool
 }
 
 // NewServer creates a new Server instance

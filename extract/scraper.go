@@ -3,15 +3,18 @@ package extract
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 type Result map[string]interface{}
@@ -35,6 +38,7 @@ func Scrape(fetcher Fetcher, pageURL string, rules []*ExtractionRule) (Result, e
 			return nil, err
 		}
 		root[rule.Name] = v
+
 	}
 	return root, nil
 }
@@ -152,7 +156,7 @@ func applyRule(sel *goquery.Selection, rule *ExtractionRule, base *url.URL) (int
 				}
 				list = append(list, rec)
 			})
-			return list, nil
+			return applyTransforms(list, rule.Transforms...), nil
 		}
 		// single
 		s := sel.Find(rule.Selector).First()
@@ -167,10 +171,10 @@ func applyRule(sel *goquery.Selection, rule *ExtractionRule, base *url.URL) (int
 						rec[rule.Attr] = raw
 					}
 				} else {
-					rec[rule.Attr] = raw
+					rec[rule.Attr] = applyTransform(raw, rule.Transforms...)
 				}
 			} else {
-				rec[rule.Attr] = raw
+				rec[rule.Attr] = applyTransform(raw, rule.Transforms...)
 			}
 		}
 		for _, child := range rule.Children {
@@ -203,12 +207,61 @@ func applyRule(sel *goquery.Selection, rule *ExtractionRule, base *url.URL) (int
 		if rule.Flatten {
 			vals = flattenList(vals)
 		}
-		return vals, nil
+		return applyTransforms(vals, rule.Transforms...), nil
 	}
 	s := sel.Find(rule.Selector).First()
 	if rule.Attr != "" {
 		raw, _ := s.Attr(rule.Attr)
-		return raw, nil
+		return applyTransform(raw, rule.Transforms...), nil
 	}
-	return strings.TrimSpace(s.Text()), nil
+	return applyTransform(strings.TrimSpace(s.Text()), rule.Transforms...), nil
+}
+
+func applyTransforms(raw []interface{}, t ...*Transforms) []interface{} {
+	var o []interface{}
+	for _, r := range raw {
+		o = append(o, applyTransform(r, t...)...)
+	}
+	return o
+}
+
+func applyTransform(raw interface{}, t ...*Transforms) []interface{} {
+	if len(t) == 0 {
+		return []interface{}{raw}
+	}
+	ss := safeString(raw)
+	if ss == "" {
+		return []interface{}{raw}
+	}
+	o := []interface{}{}
+	for _, tranform := range t {
+		r, err := regexp.Compile(tranform.Match)
+		if err != nil {
+			slog.Error("failed running regex", "reg", tranform.Match)
+			continue
+		}
+		if tranform.Split {
+			for _, v := range r.Split(ss, -1) {
+				if len(v) > 0 {
+					o = append(o, v)
+				}
+			}
+		} else {
+			ss = r.ReplaceAllString(ss, tranform.Replace)
+		}
+	}
+	if len(o) > 0 {
+		return o
+	}
+	return []interface{}{ss}
+}
+func safeString(r interface{}) string {
+	switch v := r.(type) {
+	case string:
+		return v
+	case int:
+		return strconv.Itoa(v)
+	default:
+		return ""
+	}
 }
