@@ -48,8 +48,8 @@ type Server struct {
 	healthCheckPath string
 	endpoints       []Endpoint
 	//tp              *trace.TracerProvider
-	mr          *metric.MeterProvider
-	rootEnabled bool
+	mr *metric.MeterProvider
+	//rootEnabled bool
 }
 
 // NewServer creates a new Server instance
