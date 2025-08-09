@@ -137,6 +137,33 @@ func parseOr(s string, d int) int {
 	return d
 }
 
+func ReadBodyArray[T any](r *http.Request) ([]*T, error) {
+	var t []*T
+	contentType := r.Header.Get("Content-Type")
+	switch oserver.ContentType(strings.ToLower(contentType)) {
+	case oserver.ContentTypeForm:
+		err := r.ParseForm()
+		if err != nil {
+			return nil, err
+		}
+		decoder := form.NewDecoder()
+		err = decoder.Decode(&t, r.Form)
+		if err != nil {
+			return nil, err
+		}
+		return t, nil
+
+	case oserver.ContentTypeJSON:
+		fallthrough
+	default:
+		err := json.NewDecoder(r.Body).Decode(&t)
+		if err != nil {
+			return nil, err
+		}
+		return t, nil
+	}
+}
+
 func ReadBody[T any](r *http.Request) (*T, error) {
 	var t T
 	contentType := r.Header.Get("Content-Type")
