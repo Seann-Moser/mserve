@@ -25,9 +25,7 @@ import (
 type Result map[string]interface{}
 
 func (r Result) DownloadResults(rules []*ExtractionRule, baseDir string) {
-	if strings.Contains(baseDir, "{{") {
-		baseDir = replacePlaceholders(baseDir)
-	}
+
 	for _, rule := range rules {
 		if !rule.Download && len(rule.Children) == 0 {
 			continue
@@ -39,6 +37,9 @@ func (r Result) DownloadResults(rules []*ExtractionRule, baseDir string) {
 			} else {
 				dir = rule.SaveDir
 			}
+		}
+		if strings.Contains(dir, "{{") {
+			dir = replacePlaceholders(dir)
 		}
 		if rule.Download {
 			for _, u := range r.GetResultStringArray(rule.Name) {
