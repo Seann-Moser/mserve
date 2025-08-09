@@ -2,13 +2,18 @@ package mserve
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"log/slog"
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
+
+	"github.com/Seann-Moser/credentials/oauth/oserver"
+	"github.com/go-playground/form"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type Page[T any] struct {
@@ -130,4 +135,58 @@ func parseOr(s string, d int) int {
 		return v
 	}
 	return d
+}
+
+func ReadBody[T any](r *http.Request) (*T, error) {
+	var t T
+	contentType := r.Header.Get("Content-Type")
+	switch oserver.ContentType(strings.ToLower(contentType)) {
+	case oserver.ContentTypeForm:
+		err := r.ParseForm()
+		if err != nil {
+			return nil, err
+		}
+		decoder := form.NewDecoder()
+		err = decoder.Decode(&t, r.Form)
+		if err != nil {
+			return nil, err
+		}
+		return &t, nil
+
+	case oserver.ContentTypeJSON:
+		fallthrough
+	default:
+		err := json.NewDecoder(r.Body).Decode(&t)
+		if err != nil {
+			return nil, err
+		}
+		return &t, nil
+	}
+}
+
+func WriteBody[T any](w http.ResponseWriter, r *http.Request, data T) {
+	contentType := r.Header.Get("Content-Type")
+	switch oserver.ContentType(strings.ToLower(contentType)) {
+	case oserver.ContentTypeForm:
+		// ... logic to populate v from data ...
+		encoder := form.NewEncoder()
+		values, err := encoder.Encode(data)
+		if err != nil {
+			slog.Error("failed encoding form", "err", err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/x-www-form-urlencoded")
+		_, err = w.Write([]byte(values.Encode()))
+		if err != nil {
+			slog.Error("failed writing form", "err", err)
+		}
+	case oserver.ContentTypeJSON:
+		fallthrough
+	default:
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(data)
+		if err != nil {
+			slog.Error("failed writing form", "err", err)
+		}
+	}
 }
