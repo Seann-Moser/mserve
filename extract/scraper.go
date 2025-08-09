@@ -1,6 +1,8 @@
 package extract
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,18 +12,131 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+
+	"crypto/rand"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/google/uuid"
 )
 
 type Result map[string]interface{}
 
+func (r Result) DownloadResults(rules []*ExtractionRule, baseDir string) {
+	if strings.Contains(baseDir, "{{") {
+		baseDir = replacePlaceholders(baseDir)
+	}
+	for _, rule := range rules {
+		if !rule.Download && len(rule.Children) == 0 {
+			continue
+		}
+		dir := baseDir
+		if rule.SaveDir != "" {
+			if baseDir != "" {
+				dir = filepath.Join(baseDir, rule.SaveDir)
+			} else {
+				dir = rule.SaveDir
+			}
+		}
+		if rule.Download {
+			for _, u := range r.GetResultStringArray(rule.Name) {
+				_, _ = downloadResource(u, dir)
+			}
+			print()
+		}
+		v := r.GetResult(rule.Name)
+		if v == nil {
+			continue
+		}
+
+		v.DownloadResults(rule.Children, dir)
+	}
+
+}
+
+func replacePlaceholders(s string) string {
+	// 1. Replace {{uuid}}
+	if strings.Contains(s, "{{uuid}}") {
+		newUUID := uuid.New().String()
+		s = strings.ReplaceAll(s, "{{uuid}}", newUUID)
+	}
+
+	// 2. Replace {{hex}}
+	if strings.Contains(s, "{{hex}}") {
+		bytes := make([]byte, 16)
+		if _, err := rand.Read(bytes); err != nil {
+			panic(err)
+		}
+		hexString := hex.EncodeToString(bytes)
+		s = strings.ReplaceAll(s, "{{hex}}", hexString)
+	}
+
+	// 3. Replace {{base64}}
+	if strings.Contains(s, "{{base64}}") {
+		bytes := make([]byte, 18)
+		if _, err := rand.Read(bytes); err != nil {
+			panic(err)
+		}
+		base64String := base64.StdEncoding.EncodeToString(bytes)
+		s = strings.ReplaceAll(s, "{{base64}}", base64String)
+	}
+
+	// 4. Replace {{unix}}
+	if strings.Contains(s, "{{unix}}") {
+		unixTime := fmt.Sprintf("%d", time.Now().Unix())
+		s = strings.ReplaceAll(s, "{{unix}}", unixTime)
+	}
+
+	return s
+}
+
+func (r Result) GetResult(key string) Result {
+	v, ok := r[key]
+	if !ok {
+		return nil
+	}
+	i, ok := v.(Result)
+	if ok {
+		return i
+	}
+	return nil
+}
+
+func (r Result) GetResultStringArray(key string) []string {
+	v, ok := r[key]
+	if !ok {
+		return nil
+	}
+	i, ok := v.([]string)
+	if ok {
+		return i
+	}
+	a, ok := v.(string)
+	if ok {
+		return []string{a}
+	}
+
+	it, ok := v.([]interface{})
+	if ok {
+		var output []string
+		for _, i := range it {
+			if v := safeString(i); v != "" {
+				output = append(output, v)
+			}
+		}
+		return output
+	}
+	if i := safeString(v); i != "" {
+		return []string{i}
+	}
+	return nil
+}
+
 // Scrape applies the given extraction rules against the document
 // obtained via the provided Fetcher.
-func Scrape(fetcher Fetcher, pageURL string, rules []*ExtractionRule, saveDir string) (Result, error) {
+func Scrape(fetcher Fetcher, pageURL string, rules []*ExtractionRule) (Result, error) {
 	doc, err := fetcher.Fetch(pageURL)
 	if err != nil {
 		return nil, err
@@ -33,9 +148,6 @@ func Scrape(fetcher Fetcher, pageURL string, rules []*ExtractionRule, saveDir st
 
 	root := Result{}
 	for _, rule := range rules {
-		if rule.SaveDir == "" {
-			rule.SaveDir = saveDir
-		}
 		v, err := applyRule(doc.Selection, rule, base)
 		if err != nil {
 			return nil, err
@@ -47,8 +159,8 @@ func Scrape(fetcher Fetcher, pageURL string, rules []*ExtractionRule, saveDir st
 }
 
 // ScrapeToJSON scrapes the page and returns the data as a JSON byte slice.
-func ScrapeToJSON(fetcher Fetcher, pageURL string, rules []*ExtractionRule, saveDir string) ([]byte, error) {
-	result, err := Scrape(fetcher, pageURL, rules, saveDir)
+func ScrapeToJSON(fetcher Fetcher, pageURL string, rules []*ExtractionRule) ([]byte, error) {
+	result, err := Scrape(fetcher, pageURL, rules)
 	if err != nil {
 		return nil, err
 	}
@@ -57,8 +169,8 @@ func ScrapeToJSON(fetcher Fetcher, pageURL string, rules []*ExtractionRule, save
 
 // ScrapeIntoStruct scrapes the page, marshals to JSON, then unmarshals into v.
 // v must be a pointer to your target struct (or slice, map, etc).
-func ScrapeIntoStruct(fetcher Fetcher, pageURL string, rules []*ExtractionRule, saveDir string, v interface{}) error {
-	data, err := ScrapeToJSON(fetcher, pageURL, rules, saveDir)
+func ScrapeIntoStruct(fetcher Fetcher, pageURL string, rules []*ExtractionRule, v interface{}) error {
+	data, err := ScrapeToJSON(fetcher, pageURL, rules)
 	if err != nil {
 		return err
 	}
@@ -96,7 +208,7 @@ func downloadResource(rawURL string, saveDir string) (string, error) {
 	if err := os.MkdirAll(saveDir, 0o755); err != nil {
 		return "", err
 	}
-	outPath := filepath.Join(saveDir, filename)
+	outPath := filepath.Join(saveDir, removeDuplicateExt(filename))
 	f, err := os.Create(outPath)
 	if err != nil {
 		return "", err
@@ -109,6 +221,24 @@ func downloadResource(rawURL string, saveDir string) (string, error) {
 		return "", err
 	}
 	return outPath, nil
+}
+
+func removeDuplicateExt(filename string) string {
+	ext := filepath.Ext(filename)
+	if ext == "" {
+		return filename
+	}
+
+	ext = ext[1:] // remove the dot
+	base := strings.TrimSuffix(filename, "."+ext)
+
+	// Check if the base name ends with the same extension
+	if strings.HasSuffix(base, "."+ext) {
+		// Recursively remove the duplicate extension
+		return removeDuplicateExt(base) + "." + ext
+	}
+
+	return filename
 }
 
 // flattenList recursively flattens a slice of interface{}
@@ -139,11 +269,7 @@ func applyRule(sel *goquery.Selection, rule *ExtractionRule, base *url.URL) (int
 					raw, _ := s.Attr(rule.Attr)
 					if rule.Download && raw != "" {
 						if u2, err := base.Parse(raw); err == nil {
-							if path, err := downloadResource(u2.String(), rule.SaveDir); err == nil {
-								rec[rule.Attr] = path
-							} else {
-								rec[rule.Attr] = raw
-							}
+							rec[rule.Attr] = u2.String()
 						} else {
 							rec[rule.Attr] = raw
 						}
@@ -168,11 +294,9 @@ func applyRule(sel *goquery.Selection, rule *ExtractionRule, base *url.URL) (int
 			raw, _ := s.Attr(rule.Attr)
 			if rule.Download && raw != "" {
 				if u2, err := base.Parse(raw); err == nil {
-					if path, err := downloadResource(u2.String(), rule.SaveDir); err == nil {
-						rec[rule.Attr] = path
-					} else {
-						rec[rule.Attr] = raw
-					}
+
+					rec[rule.Attr] = u2.String()
+
 				} else {
 					rec[rule.Attr] = applyTransform(raw, rule.Transforms...)
 				}
@@ -194,11 +318,10 @@ func applyRule(sel *goquery.Selection, rule *ExtractionRule, base *url.URL) (int
 		sel.Find(rule.Selector).Each(func(i int, s *goquery.Selection) {
 			if rule.Attr != "" {
 				raw, _ := s.Attr(rule.Attr)
+				//todo refactor to run downloads after full thing is finished
 				if rule.Download && raw != "" {
 					if u2, err := base.Parse(raw); err == nil {
-						if path, err := downloadResource(u2.String(), rule.SaveDir); err == nil {
-							raw = u2.String() + ":::" + path
-						}
+						raw = u2.String()
 					}
 				}
 
