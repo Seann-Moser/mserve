@@ -21,7 +21,7 @@ type Result map[string]interface{}
 
 // Scrape applies the given extraction rules against the document
 // obtained via the provided Fetcher.
-func Scrape(fetcher Fetcher, pageURL string, rules []*ExtractionRule) (Result, error) {
+func Scrape(fetcher Fetcher, pageURL string, rules []*ExtractionRule, saveDir string) (Result, error) {
 	doc, err := fetcher.Fetch(pageURL)
 	if err != nil {
 		return nil, err
@@ -33,6 +33,9 @@ func Scrape(fetcher Fetcher, pageURL string, rules []*ExtractionRule) (Result, e
 
 	root := Result{}
 	for _, rule := range rules {
+		if rule.SaveDir == "" {
+			rule.SaveDir = saveDir
+		}
 		v, err := applyRule(doc.Selection, rule, base)
 		if err != nil {
 			return nil, err
@@ -44,8 +47,8 @@ func Scrape(fetcher Fetcher, pageURL string, rules []*ExtractionRule) (Result, e
 }
 
 // ScrapeToJSON scrapes the page and returns the data as a JSON byte slice.
-func ScrapeToJSON(fetcher Fetcher, pageURL string, rules []*ExtractionRule) ([]byte, error) {
-	result, err := Scrape(fetcher, pageURL, rules)
+func ScrapeToJSON(fetcher Fetcher, pageURL string, rules []*ExtractionRule, saveDir string) ([]byte, error) {
+	result, err := Scrape(fetcher, pageURL, rules, saveDir)
 	if err != nil {
 		return nil, err
 	}
@@ -54,8 +57,8 @@ func ScrapeToJSON(fetcher Fetcher, pageURL string, rules []*ExtractionRule) ([]b
 
 // ScrapeIntoStruct scrapes the page, marshals to JSON, then unmarshals into v.
 // v must be a pointer to your target struct (or slice, map, etc).
-func ScrapeIntoStruct(fetcher Fetcher, pageURL string, rules []*ExtractionRule, v interface{}) error {
-	data, err := ScrapeToJSON(fetcher, pageURL, rules)
+func ScrapeIntoStruct(fetcher Fetcher, pageURL string, rules []*ExtractionRule, saveDir string, v interface{}) error {
+	data, err := ScrapeToJSON(fetcher, pageURL, rules, saveDir)
 	if err != nil {
 		return err
 	}
