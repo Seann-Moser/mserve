@@ -1,6 +1,8 @@
 package extract
 
 import (
+	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -12,20 +14,23 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-
-	"crypto/rand"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	app "github.com/lib4u/fake-useragent"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/google/uuid"
+	"golang.org/x/sync/semaphore"
 )
+
+var ua *app.UserAgent
 
 type Result map[string]interface{}
 
-func (r Result) DownloadResults(rules []*ExtractionRule, baseDir string) {
-
+func (r Result) DownloadResults(ctx context.Context, rules []*ExtractionRule, baseDir string, concurrency int) Result {
 	for _, rule := range rules {
 		if !rule.Download && len(rule.Children) == 0 {
 			continue
@@ -42,19 +47,38 @@ func (r Result) DownloadResults(rules []*ExtractionRule, baseDir string) {
 			dir = replacePlaceholders(dir)
 		}
 		if rule.Download {
-			for _, u := range r.GetResultStringArray(rule.Name) {
-				_, _ = downloadResource(u, dir)
+			var downloadList []string
+			if concurrency < 1 {
+				concurrency = 1
 			}
-			print()
+			s := semaphore.NewWeighted(int64(concurrency))
+			wg := sync.WaitGroup{}
+			for _, u := range r.GetResultStringArray(rule.Name) {
+				wg.Add(1)
+				err := s.Acquire(ctx, 1)
+				if err != nil {
+					continue
+				}
+				go func() {
+					defer s.Release(1)
+					defer wg.Done()
+					p, _ := downloadResource(ctx, u, dir)
+					downloadList = append(downloadList, p)
+
+				}()
+			}
+			wg.Wait()
+			r[rule.Name] = downloadList
 		}
 		v := r.GetResult(rule.Name)
 		if v == nil {
 			continue
 		}
 
-		v.DownloadResults(rule.Children, dir)
+		p := v.DownloadResults(ctx, rule.Children, dir, concurrency)
+		r[rule.Name] = p
 	}
-
+	return r
 }
 
 func replacePlaceholders(s string) string {
@@ -179,8 +203,20 @@ func ScrapeIntoStruct(fetcher Fetcher, pageURL string, rules []*ExtractionRule, 
 }
 
 // 3) downloadResource: fetches a URL and writes it under saveDir, returning the local path.
-func downloadResource(rawURL string, saveDir string) (string, error) {
-	resp, err := http.Get(rawURL)
+func downloadResource(ctx context.Context, rawURL string, saveDir string) (string, error) {
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return "", err
+	}
+	if ua == nil {
+		ua, err = app.New()
+		if err == nil {
+			r.Header.Set("User-Agent", ua.GetRandom())
+		}
+	} else {
+		r.Header.Set("User-Agent", ua.GetRandom())
+	}
+	resp, err := http.DefaultClient.Do(r)
 	if err != nil {
 		return "", err
 	}
@@ -209,7 +245,8 @@ func downloadResource(rawURL string, saveDir string) (string, error) {
 	if err := os.MkdirAll(saveDir, 0o755); err != nil {
 		return "", err
 	}
-	outPath := filepath.Join(saveDir, removeDuplicateExt(filename))
+	p := removeDuplicateExt(filename)
+	outPath := filepath.Join(saveDir, p)
 	f, err := os.Create(outPath)
 	if err != nil {
 		return "", err
@@ -236,7 +273,7 @@ func removeDuplicateExt(filename string) string {
 	// Check if the base name ends with the same extension
 	if strings.HasSuffix(base, "."+ext) {
 		// Recursively remove the duplicate extension
-		return removeDuplicateExt(base) + "." + ext
+		return removeDuplicateExt(base)
 	}
 
 	return filename

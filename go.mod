@@ -11,6 +11,7 @@ require (
 	github.com/go-playground/form v3.1.4+incompatible
 	github.com/go-webauthn/webauthn v0.13.4
 	github.com/gorilla/mux v1.8.1
+	github.com/lib4u/fake-useragent v1.0.6
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	go.mongodb.org/mongo-driver v1.17.4
 	go.opentelemetry.io/otel/sdk/metric v1.37.0
@@ -21,6 +22,7 @@ require (
 require (
 	go.opentelemetry.io/otel v1.37.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.37.0 // indirect
+	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 )
 
@@ -42,7 +44,7 @@ require (
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/go-tpm v0.9.5 // indirect
-	github.com/google/uuid v1.6.0 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
@@ -79,7 +81,7 @@ require (
 	golang.org/x/mod v0.27.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
+	golang.org/x/sync v0.16.0
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/tools v0.36.0 // indirect
 )
