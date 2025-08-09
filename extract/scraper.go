@@ -47,13 +47,14 @@ func (r Result) DownloadResults(ctx context.Context, rules []*ExtractionRule, ba
 			dir = replacePlaceholders(dir)
 		}
 		if rule.Download {
-			var downloadList []string
+			urlResults := r.GetResultStringArray(rule.Name)
+			var downloadList = make([]string, len(urlResults))
 			if concurrency < 1 {
 				concurrency = 1
 			}
 			s := semaphore.NewWeighted(int64(concurrency))
 			wg := sync.WaitGroup{}
-			for _, u := range r.GetResultStringArray(rule.Name) {
+			for i, u := range urlResults {
 				wg.Add(1)
 				err := s.Acquire(ctx, 1)
 				if err != nil {
@@ -63,7 +64,7 @@ func (r Result) DownloadResults(ctx context.Context, rules []*ExtractionRule, ba
 					defer s.Release(1)
 					defer wg.Done()
 					p, _ := downloadResource(ctx, u, dir)
-					downloadList = append(downloadList, p)
+					downloadList[i] = p
 
 				}()
 			}
