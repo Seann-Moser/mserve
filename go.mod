@@ -11,8 +11,11 @@ require (
 	github.com/go-playground/form v3.1.4+incompatible
 	github.com/go-webauthn/webauthn v0.13.4
 	github.com/gorilla/mux v1.8.1
+	github.com/grafov/m3u8 v0.12.1
 	github.com/lib4u/fake-useragent v1.0.6
 	github.com/patrickmn/go-cache v2.1.0+incompatible
+	github.com/schollz/progressbar/v3 v3.18.0
+	github.com/tidwall/gjson v1.18.0
 	go.mongodb.org/mongo-driver v1.17.4
 	go.opentelemetry.io/otel/sdk/metric v1.37.0
 	golang.org/x/text v0.28.0
@@ -20,9 +23,14 @@ require (
 )
 
 require (
+	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	go.opentelemetry.io/otel v1.37.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.37.0 // indirect
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
+	golang.org/x/term v0.34.0 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 )
 
