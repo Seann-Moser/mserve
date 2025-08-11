@@ -201,7 +201,7 @@ func GetPlaylistDuration(path string) (int, error) {
 
 func CreatePreview(playlistPath, outputPath string, clipLength float64) error {
 	// seed randomness
-	rand.Seed(time.Now().UnixNano())
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	_, totalDur, err := parsePlaylist(playlistPath)
 	if err != nil {
@@ -229,7 +229,7 @@ func CreatePreview(playlistPath, outputPath string, clipLength float64) error {
 			return fmt.Errorf("section %d too short for clip length %.1f", i, clipLength)
 		}
 		// choose random offset
-		start := secStart + rand.Float64()*(secEnd-secStart-clipLength)
+		start := secStart + r.Float64()*(secEnd-secStart-clipLength)
 		outFile := filepath.Join(tempDir, fmt.Sprintf("clip_%d.ts", i))
 		if err := extractClip(context.Background(), playlistPath, start, clipLength, outFile); err != nil {
 			return fmt.Errorf("extract clip %d: %w", i, err)

@@ -7,8 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/schollz/progressbar/v3"
-	"golang.org/x/sync/semaphore"
 	"log/slog"
 	"net/url"
 	"path/filepath"
@@ -16,6 +14,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/schollz/progressbar/v3"
+	"golang.org/x/sync/semaphore"
 
 	"github.com/Seann-Moser/mserve/extract"
 	"github.com/google/uuid"
@@ -76,7 +77,9 @@ func (vc *Client) DownloadVideoToFile(ctx context.Context, pageURL, outPath stri
 	var bar *progressbar.ProgressBar
 	if vc.Preview {
 		bar = progressbar.New(len(videos))
-		defer bar.Finish()
+		defer func() {
+			_ = bar.Finish()
+		}()
 	}
 	for _, v := range videos {
 		if v.DownloadedFromURL == "" {
@@ -139,35 +142,6 @@ func ToSnakeCase(s string) string {
 
 	// 3) trim any leading/trailing underscores
 	return strings.Trim(s, "_")
-}
-
-// resolveURL turns a possibly-relative ref into an absolute URL
-// based on base. E.g. base="https://foo.com/bar", ref="/omni-player/…"
-// → "https://foo.com/omni-player/…"
-func resolveURLs(base, ref string) string {
-	ref = strings.TrimSpace(ref)
-	u, err := url.Parse(ref)
-	if err == nil && u.IsAbs() {
-		return u.String()
-	}
-	baseU, err := url.Parse(base)
-	if err != nil {
-		return ref
-	}
-	return baseU.ResolveReference(u).String()
-}
-
-// unique removes duplicates while preserving order.
-func unique(items []string) []string {
-	seen := make(map[string]struct{}, len(items))
-	out := make([]string, 0, len(items))
-	for _, s := range items {
-		if _, ok := seen[s]; !ok {
-			seen[s] = struct{}{}
-			out = append(out, s)
-		}
-	}
-	return out
 }
 
 func ArrayInterfaceToStruct[T any](i interface{}) ([]*T, error) {
