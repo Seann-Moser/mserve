@@ -37,12 +37,16 @@ func MapResultsResults(result Result, r *Rule) (map[string]interface{}, error) {
 	for _, mapping := range r.Mapping {
 		gjsonResult := gjson.GetBytes(data, mapping.Key)
 
-		if mapping.IsArray {
+		if mapping.IsArray || len(mapping.ArrayObjMap) > 0 {
 			var arrayResult []interface{}
+			index := 0
 			gjsonResult.ForEach(func(_, value gjson.Result) bool {
+				defer func() {
+					index++
+				}()
 				if len(mapping.ArrayObjMap) > 0 {
 					// Pass the entire slice of sub-mappings to the helper function
-					nestedObj, err := remapSingleObject(value, mapping.ArrayObjMap)
+					nestedObj, err := remapSingleObject(value, mapping.ArrayObjMap, index)
 					if err != nil {
 						// Log error or handle it
 						return true
@@ -164,10 +168,12 @@ func extractNumberFromBrackets(s string) (int, error) {
 }
 
 // remapSingleObject now takes a slice of mappings
-func remapSingleObject(obj gjson.Result, rules []*Mapping) (map[string]interface{}, error) {
+func remapSingleObject(obj gjson.Result, rules []*Mapping, index int) (map[string]interface{}, error) {
 	remappedObj := make(map[string]interface{})
 
 	for _, rule := range rules {
+		rule.Key = strings.ReplaceAll(rule.Key, "[", ".")
+		rule.Key = strings.ReplaceAll(rule.Key, "]", "")
 		gjsonVal := obj.Get(rule.Key)
 		if rule.Key == "" || rule.Key == "." {
 			gjsonVal = obj
@@ -177,8 +183,9 @@ func remapSingleObject(obj gjson.Result, rules []*Mapping) (map[string]interface
 		if rule.Format == nil {
 			rule.Format = map[string]interface{}{}
 		}
-		formatCopy := deepCopyMap(rule.Format)
+		formatCopy := deepCopyMap(rule.Format, index)
 		for k, v := range formatCopy {
+			//to map format copy
 			remappedObj[k] = v
 		}
 
@@ -190,24 +197,24 @@ func remapSingleObject(obj gjson.Result, rules []*Mapping) (map[string]interface
 	return remappedObj, nil
 }
 
-func deepCopy(value interface{}) interface{} {
+func deepCopy(value interface{}, index int) interface{} {
 	switch v := value.(type) {
 	case map[string]interface{}:
-		return deepCopyMap(v)
+		return deepCopyMap(v, index)
 	case []interface{}:
 		return deepCopySlice(v)
 	default:
-		return v
+		return replacePlaceholdersInterface(v, index)
 	}
 }
 
-func deepCopyMap(m map[string]interface{}) map[string]interface{} {
+func deepCopyMap(m map[string]interface{}, index int) map[string]interface{} {
 	if m == nil {
 		return nil
 	}
 	newMap := make(map[string]interface{}, len(m))
 	for k, v := range m {
-		newMap[k] = deepCopy(v)
+		newMap[k] = deepCopy(v, index)
 	}
 	return newMap
 }
@@ -218,7 +225,7 @@ func deepCopySlice(s []interface{}) []interface{} {
 	}
 	newSlice := make([]interface{}, len(s))
 	for i, v := range s {
-		newSlice[i] = deepCopy(v)
+		newSlice[i] = deepCopy(v, i)
 	}
 	return newSlice
 }

@@ -22,6 +22,7 @@ type ExtractionRule struct {
 	Attr       string            `json:"attr,omitempty" yaml:"attr,omitempty" bson:"attr,omitempty"`
 	Multiple   bool              `json:"multiple,omitempty" yaml:"multiple,omitempty" bson:"multiple,omitempty"`
 	Download   bool              `json:"download,omitempty" yaml:"download,omitempty" bson:"download,omitempty"`
+	Visit      bool              `json:"visit" yaml:"visit" bson:"visit"`
 	Flatten    bool              `json:"flatten,omitempty" yaml:"flatten,omitempty" bson:"flatten,omitempty"`
 	SaveDir    string            `json:"save_dir,omitempty" yaml:"save_dir,omitempty" bson:"save_dir,omitempty"`
 	Children   []*ExtractionRule `json:"children,omitempty" yaml:"children,omitempty" bson:"children,omitempty"`

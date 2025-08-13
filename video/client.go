@@ -43,7 +43,7 @@ func New(f extract.Fetcher, dir string, concurrencyWorkers int64) *Client {
 }
 
 func (vc *Client) DownloadVideoToFile(ctx context.Context, pageURL, outPath string, rule *extract.Rule) ([]*Video, error) {
-	result, err := extract.Scrape(vc.fetcher, pageURL, rule.Rules)
+	result, err := extract.Scrape(vc.fetcher, pageURL, rule.Rules, nil)
 	if err != nil {
 		return nil, err
 	}
