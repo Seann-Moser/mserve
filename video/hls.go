@@ -86,12 +86,23 @@ func ConvertToHLS_GPU(inputPath, outputDir string, segmentDuration int) error {
 	}
 	return nil
 }
+func formatDurationSimpler(d time.Duration) string {
+	d = d.Round(time.Second)
+	totalSeconds := int(d.Seconds())
+	h := totalSeconds / 3600
+	m := (totalSeconds % 3600) / 60
+	s := totalSeconds % 60
+	return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
+}
 
 // generatePreview uses FFmpeg to grab a single frame at 1s and save as preview.jpg
-func generatePreview(inputPath, outputDir string, duration int) error {
+func generatePreview(inputPath, outputDir string, duration time.Duration) error {
 	previewPath := filepath.Join(outputDir, "preview.jpg")
+	if _, err := os.Stat(previewPath); !errors.Is(err, os.ErrNotExist) {
+		_ = os.Remove(previewPath)
+	}
 	args := []string{
-		"-ss", "00:00:01", // seek to 1 second
+		"-ss", formatDurationSimpler(duration), // seek to 1 second
 		"-i", inputPath, // input file
 		"-frames:v", "1", // grab exactly one frame
 		"-q:v", "2", // high-quality JPEG (1–31, lower is better)
