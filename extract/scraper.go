@@ -235,7 +235,7 @@ func (r Result) GetResultStringArray(key ...string) []string {
 			if len(key) > 1 {
 				raw, err := json.Marshal(i)
 				if err != nil {
-					slog.Error("failed getting results", raw)
+					slog.Error("failed getting results", "err", err)
 					continue
 				}
 				r := gjson.GetBytes(raw, strings.Join(key[1:], "."))
