@@ -18,10 +18,10 @@ import (
 type Repo[T any] interface {
 	InsertAny(ctx context.Context, data ...any) ([]T, error)
 	Insert(ctx context.Context, data ...T) ([]T, error)
-	Update(ctx context.Context, update bson.D, filter bson.M) (T, error)
+	Update(ctx context.Context, update interface{}, filter interface{}, updateOptions *options.UpdateOptions) (T, error)
 
-	List(ctx context.Context, filter bson.M, page mserve.Page[T]) (mserve.Page[T], error)
-	Delete(ctx context.Context, filter bson.M) error
+	List(ctx context.Context, filter interface{}, findOpts *options.FindOptions, page mserve.Page[T]) (mserve.Page[T], error)
+	Delete(ctx context.Context, filter interface{}) error
 }
 
 // getStructName takes a variable as an interface and returns the name of its struct type.
@@ -217,11 +217,16 @@ func (m *Mongo[T]) Insert(ctx context.Context, data ...T) ([]T, error) {
 }
 
 // Update updates a single document based on a filter and returns the updated document.
-func (m *Mongo[T]) Update(ctx context.Context, update bson.D, filter bson.M) (T, error) {
+func (m *Mongo[T]) Update(ctx context.Context, update interface{}, filter interface{}, updateOptions *options.UpdateOptions) (T, error) {
 	var result T
 
 	// Use FindOneAndUpdate with a `return new` option to get the document after the update.
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
+	if updateOptions != nil {
+		if updateOptions.Upsert != nil {
+			opts = opts.SetUpsert(*updateOptions.Upsert)
+		}
+	}
 
 	err := m.collection.FindOneAndUpdate(ctx, filter, update, opts).Decode(&result)
 	if err != nil {
@@ -235,14 +240,14 @@ func (m *Mongo[T]) Update(ctx context.Context, update bson.D, filter bson.M) (T,
 }
 
 // List retrieves a paginated list of documents from the collection.
-func (m *Mongo[T]) List(ctx context.Context, filter bson.M, page mserve.Page[T]) (mserve.Page[T], error) {
+func (m *Mongo[T]) List(ctx context.Context, filter interface{}, findOpts *options.FindOptions, page mserve.Page[T]) (mserve.Page[T], error) {
 	// First, get the total count of documents matching the filter.
 
-	return mserve.PaginateMongo[T](ctx, m.collection, filter, page.Page, page.Limit, nil)
+	return mserve.PaginateMongo[T](ctx, m.collection, filter, page.Page, page.Limit, findOpts)
 }
 
 // Delete deletes documents from the collection based on a filter.
-func (m *Mongo[T]) Delete(ctx context.Context, filter bson.M) error {
+func (m *Mongo[T]) Delete(ctx context.Context, filter interface{}) error {
 	// DeleteMany is a more generic and powerful option than DeleteOne.
 	deleteResult, err := m.collection.DeleteMany(ctx, filter)
 	if err != nil {
