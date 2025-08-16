@@ -12,21 +12,25 @@ import (
 )
 
 type Video struct {
-	ID                string   `json:"video_id" db:"video_id"`
-	Name              string   `json:"name" db:"name" `
-	HLS               bool     `json:"hls" db:"hls"`
-	Description       string   `json:"description" db:"description"`
-	Preview           string   `json:"preview" db:"preview"`
-	ThumbImage        string   `json:"thumb_image" db:"thumb_image"`
-	Src               string   `json:"src" db:"src"`
-	DownloadedFromURL string   `json:"downloaded_from_url" db:"downloaded_from_url"`
-	Dir               string   `json:"dir" db:"dir"`
-	Length            int      `json:"length" db:"length"`
+	ID                string   `json:"video_id" bson:"video_id" index:"1"`
+	Name              string   `json:"name" bson:"name" index:"2"`
+	HLS               bool     `json:"hls" bson:"hls"`
+	Description       string   `json:"description" bson:"description"`
+	Preview           string   `json:"preview" bson:"preview"`
+	ThumbImage        string   `json:"thumb_image" bson:"thumb_image"`
+	Src               string   `json:"src" bson:"src"`
+	DownloadedFromURL string   `json:"downloaded_from_url" bson:"downloaded_from_url"`
+	Dir               string   `json:"dir" bson:"dir"`
+	Length            int      `json:"length" bson:"length" index:"3"`
 	Tags              []string `json:"tags" bson:"tags"`
-	Views             int      `json:"views" db:"views"`
+	Views             int      `json:"views" bson:"views"`
 
-	UpdatedTimestamp time.Time `db:"updated_timestamp" json:"updated_timestamp"`
-	CreatedTimestamp time.Time `db:"created_timestamp" json:"created_timestamp"`
+	Relationships []struct {
+		Type string
+		ID   string
+	} `json:"relationships" bson:"relationships"`
+	UpdatedTimestamp time.Time `bson:"updated_timestamp" json:"updated_timestamp"`
+	CreatedTimestamp time.Time `bson:"created_timestamp" json:"created_timestamp"`
 }
 
 func (v *Video) HLSHandler(pathPrefix, baseDir string, w http.ResponseWriter, r *http.Request) {
