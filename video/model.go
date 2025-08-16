@@ -25,12 +25,13 @@ type Video struct {
 	Tags              []string `json:"tags" bson:"tags"`
 	Views             int      `json:"views" bson:"views"`
 
-	Relationships []struct {
-		Type string
-		ID   string
-	} `json:"relationships" bson:"relationships"`
-	UpdatedTimestamp time.Time `bson:"updated_timestamp" json:"updated_timestamp"`
-	CreatedTimestamp time.Time `bson:"created_timestamp" json:"created_timestamp"`
+	Relationships    []Relationship `json:"relationships" bson:"relationships"`
+	UpdatedTimestamp time.Time      `bson:"updated_timestamp" json:"updated_timestamp"`
+	CreatedTimestamp time.Time      `bson:"created_timestamp" json:"created_timestamp"`
+}
+type Relationship struct {
+	Type string `bson:"type" json:"type"`
+	ID   string `bson:"id" json:"id"`
 }
 
 func (v *Video) HLSHandler(pathPrefix, baseDir string, w http.ResponseWriter, r *http.Request) {
