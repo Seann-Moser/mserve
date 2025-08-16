@@ -54,7 +54,9 @@ func (v *Video) PreviewHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "File not found.", http.StatusNotFound)
 		return
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	fi, err := f.Stat()
 	if err != nil {

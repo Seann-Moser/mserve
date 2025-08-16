@@ -147,7 +147,9 @@ func downloadFile(ctx context.Context, fileURL, outPath string, v *Video) error 
 	if err != nil {
 		return fmt.Errorf("download request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("bad status: %d", resp.StatusCode)
 	}
@@ -157,7 +159,9 @@ func downloadFile(ctx context.Context, fileURL, outPath string, v *Video) error 
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 	// copy with progress
 
 	if _, err := io.Copy(f, resp.Body); err != nil {
@@ -190,7 +194,9 @@ func GetPlaylistDuration(path string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	p, listType, err := m3u8.DecodeFrom(bufio.NewReader(f), true)
 	if err != nil {
@@ -231,8 +237,9 @@ func CreatePreview(playlistPath, outputPath string, clipLength float64) error {
 	if err != nil {
 		return fmt.Errorf("make temp dir: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
-
+	defer func() {
+		_ = os.RemoveAll(tempDir)
+	}()
 	var clipFiles []string
 	for i, sec := range sections {
 		secStart, secEnd := sec[0], sec[1]
@@ -267,7 +274,9 @@ func parsePlaylist(path string) ([]*m3u8.MediaSegment, float64, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	p, listType, err := m3u8.DecodeFrom(bufio.NewReader(f), true)
 	if err != nil {
@@ -306,9 +315,11 @@ func writeConcatList(path string, clips []string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 	for _, c := range clips {
-		fmt.Fprintf(f, "file '%s'\n", c)
+		_, _ = fmt.Fprintf(f, "file '%s'\n", c)
 	}
 	return nil
 }
@@ -336,7 +347,9 @@ func downloadHLS(ctx context.Context, playlistURL, outPath string) error {
 	if err != nil {
 		return fmt.Errorf("fetch playlist: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	pl, listType, err := m3u8.DecodeFrom(resp.Body, true)
 	if err != nil {
@@ -352,7 +365,9 @@ func downloadHLS(ctx context.Context, playlistURL, outPath string) error {
 	if err != nil {
 		return fmt.Errorf("create output: %w", err)
 	}
-	defer outFile.Close()
+	defer func() {
+		_ = outFile.Close()
+	}()
 
 	// download each segment
 	for _, seg := range media.Segments {
@@ -366,15 +381,15 @@ func downloadHLS(ctx context.Context, playlistURL, outPath string) error {
 			return fmt.Errorf("fetch segment %s: %w", segURL, err)
 		}
 		if r2.StatusCode != http.StatusOK {
-			r2.Body.Close()
+			_ = r2.Body.Close()
 			return fmt.Errorf("bad status for segment: %d", r2.StatusCode)
 		}
 		// append segment data
 		if _, err := io.Copy(outFile, r2.Body); err != nil {
-			r2.Body.Close()
+			_ = r2.Body.Close()
 			return fmt.Errorf("write segment: %w", err)
 		}
-		r2.Body.Close()
+		_ = r2.Body.Close()
 	}
 
 	return nil

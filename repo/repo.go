@@ -22,6 +22,8 @@ type Repo[T any] interface {
 
 	List(ctx context.Context, filter interface{}, findOpts *options.FindOptions, page mserve.Page[T]) (mserve.Page[T], error)
 	Delete(ctx context.Context, filter interface{}) error
+	Aggregate(ctx context.Context, pipeline mongo.Pipeline) (*mongo.Cursor, error)
+	Mongo() *mongo.Collection
 }
 
 // getStructName takes a variable as an interface and returns the name of its struct type.
@@ -51,6 +53,36 @@ func getStructName(v interface{}) string {
 // Mongo is a generic repository implementation for MongoDB.
 type Mongo[T any] struct {
 	collection *mongo.Collection
+}
+
+func Cursor[T any](ctx context.Context, cursor *mongo.Cursor, continueOnFailure bool) (output []*T, err error) {
+	defer func() {
+		_ = cursor.Close(ctx)
+	}()
+	for cursor.Next(context.TODO()) {
+		var t T
+		err = cursor.Decode(&t)
+		if err != nil {
+			if !continueOnFailure {
+				return nil, err
+			}
+			slog.Error("failed decoding message", "err", err)
+			continue
+		}
+		output = append(output, &t)
+	}
+	return
+}
+func (m *Mongo[T]) Aggregate(ctx context.Context, pipeline mongo.Pipeline) (*mongo.Cursor, error) {
+	cursor, err := m.collection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, nil
+	}
+	return cursor, nil
+}
+
+func (m *Mongo[T]) Mongo() *mongo.Collection {
+	return m.collection
 }
 
 // NewMongo creates a new Mongo repository instance for a given database and generic type.
@@ -112,13 +144,13 @@ func (m *Mongo[T]) createIndexes(ctx context.Context) error {
 		}
 
 		// Parse the index value (e.g., "1", "-1", "text").
-		var indexValue int32 = 1
-		if indexTag == "1" {
+		var indexValue int32
+		switch indexTag {
+		case "1":
 			indexValue = 1
-		} else if indexTag == "-1" {
+		case "-1":
 			indexValue = -1
-		} else {
-			// For other types like "text", keep the string value.
+		default:
 			keyName = "$" + indexTag
 			indexValue = 1
 		}
@@ -126,7 +158,7 @@ func (m *Mongo[T]) createIndexes(ctx context.Context) error {
 		// Handle single-field indexes without a group tag.
 		if groupTag == "" {
 			indexModels = append(indexModels, mongo.IndexModel{
-				Keys: bson.D{{keyName, indexValue}},
+				Keys: bson.D{{Key: keyName, Value: indexValue}},
 			})
 			continue
 		}
