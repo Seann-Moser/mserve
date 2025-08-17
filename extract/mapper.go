@@ -82,6 +82,9 @@ func MapResultsResults(result Result, r *Rule) (map[string]interface{}, error) {
 			}
 		}
 	}
+	for k, v := range objMap {
+		remappedData[k] = v
+	}
 
 	return remappedData, nil
 }
