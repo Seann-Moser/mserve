@@ -3,13 +3,15 @@ package nuxt3FromOpenApi
 import (
 	_ "embed"
 	"fmt"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
-	"gopkg.in/yaml.v3" // Make sure you have this dependency: go get gopkg.in/yaml.v3
+	"regexp"
 	"strings"
 	"text/template"
 	"unicode"
 	"unicode/utf8"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+	"gopkg.in/yaml.v3" // Make sure you have this dependency: go get gopkg.in/yaml.v3
 )
 
 // --- Go Structs for OpenAPI YAML Parsing ---
@@ -109,6 +111,7 @@ func GenerateNuxt3Plugin(yamlFile []byte) (string, error) {
 			if funcName == "" {
 				funcName = generateFunctionName(method, path)
 			}
+			funcName = strings.ReplaceAll(funcName, " ", "")
 
 			endpoint := EndpointData{
 				Method:       strings.ToUpper(method),
@@ -224,6 +227,7 @@ func ToSnakeCase(s string) string {
 func generateFunctionName(method, path string) string {
 	parts := strings.Split(path, "/")
 	var nameParts []string
+
 	for _, part := range parts {
 		if strings.HasPrefix(part, "{") && strings.HasSuffix(part, "}") {
 			paramName := strings.Trim(part, "{}")
@@ -232,9 +236,12 @@ func generateFunctionName(method, path string) string {
 			nameParts = append(nameParts, Title(part))
 		}
 	}
+
 	name := strings.ToLower(method) + strings.Join(nameParts, "")
-	return name
+	// Remove all whitespace
+	return regexp.MustCompile(`\s+`).ReplaceAllString(name, "")
 }
+
 func Title(s string) string {
 	// Create a caser for title-casing, using Unicode rules
 	caser := cases.Title(language.English)

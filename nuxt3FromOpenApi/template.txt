@@ -119,8 +119,6 @@ export default defineNuxtPlugin((nuxtApp) => {
         });
     }
 
-
-
     {{range .Endpoints}}
     /**
      * Calls {{.Method}} {{.Path}}
@@ -136,15 +134,12 @@ export default defineNuxtPlugin((nuxtApp) => {
      * @returns {Promise<any>}
      */
     {{.FunctionName}}({{jsParams .}}) {
-      let path = {{interpolatePath .Path .PathParams}}
+      let path = {{interpolatePath .Path .PathParams}}{{queryParamsAppends .QueryParams}}{{with .PathParams}}
       const urlParams = new URLSearchParams()
-      {{queryParamsAppends .QueryParams}}
-      {{with .PathParams}}{{range .}}urlParams.set("{{.Name}}",{{.Name}})
-      {{end}}{{end}}
-
-      if (urlParams.toString()) {
+      {{range .}}urlParams.set("{{.Name}}",{{.Name}})
+      {{end}}if (urlParams.toString()) {
         path += `?${urlParams.toString()}`
-      }
+      }{{end}}
       const fetchOptions = {
         method: '{{.Method}}',
         headers: {{headersObject .HeaderParams}},
