@@ -25,7 +25,8 @@ import (
 func ConvertToHLS(inputPath, outputDir string, segmentDuration int) error {
 	// try GPU first
 	if err := ConvertToHLS_GPU(inputPath, outputDir, segmentDuration); err == nil {
-		return generatePreview(inputPath, outputDir, 1)
+
+		return generatePreview(inputPath, outputDir, time.Duration(rand.Intn(30)+30)*time.Second)
 	} else {
 		slog.Error("GPU HLS conversion failed, falling back to CPU", "err", err)
 	}
@@ -54,7 +55,7 @@ func ConvertToHLS(inputPath, outputDir string, segmentDuration int) error {
 		return fmt.Errorf("ffmpeg failed: %w", err)
 	}
 
-	return generatePreview(inputPath, outputDir, 1)
+	return generatePreview(inputPath, outputDir, time.Duration(rand.Intn(30)+30)*time.Second)
 }
 
 // ConvertToHLS_GPU is the same as before…
@@ -153,11 +154,18 @@ func downloadFile(ctx context.Context, fileURL, outPath string, v *Video) error 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("bad status: %d", resp.StatusCode)
 	}
+	dir := filepath.Dir(outPath)
+
+	// Then, create all necessary directories.
+	// MkdirAll does nothing if the directories already exist, which is perfect.
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create directory: %w %s", err, dir)
+	}
 
 	// create output file
 	f, err := os.Create(outPath)
 	if err != nil {
-		return fmt.Errorf("create file: %w", err)
+		return fmt.Errorf("create file: %w %s", err, outPath)
 	}
 	defer func() {
 		_ = f.Close()

@@ -18,6 +18,7 @@ import (
 	"github.com/Seann-Moser/credentials/oauth/oserver"
 	"github.com/Seann-Moser/mserve/nuxt3FromOpenApi"
 	"github.com/Seann-Moser/rbac/rbacServer"
+	"github.com/getkin/kin-openapi/openapi3"
 	"gopkg.in/yaml.v3"
 
 	"github.com/Seann-Moser/credentials/session"
@@ -181,14 +182,16 @@ func (s *Server) AddEndpoints(ctx context.Context, endpoints ...*Endpoint) error
 		if e.Name == "" {
 			e.Name = pathToTitle(e.Path)
 		}
-		if e.Methods == nil {
-			e.Methods = []string{}
+		if len(e.Methods) == 0 {
 			if e.Request.Body != nil {
-				e.Methods = append(e.Methods, http.MethodPost)
+				e.Methods = []string{http.MethodPost}
 			} else {
-				e.Methods = append(e.Methods, http.MethodGet)
+				e.Methods = []string{http.MethodGet}
 			}
+		} else if len(e.Methods) == 1 && e.Methods[0] == http.MethodGet && e.Request.Body != nil {
+			e.Methods[0] = http.MethodPost
 		}
+
 		handler := e.Handler
 		err := e.Init(ctx, s.ServiceName, s.rbac)
 		if err != nil {
@@ -375,52 +378,24 @@ func (s *Server) GenerateOpenAPIDocs() *Server {
 		Description: "",
 		Methods:     []string{"GET"},
 		Path:        "/openapi/v2.yaml",
-		Handler: func(w http.ResponseWriter, r *http.Request) {
-			renderUI := r.URL.Query().Get("render")
-			switch renderUI {
-			case "json":
-				d, err := api.MarshalJSON()
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
+		Handler: func(writer http.ResponseWriter, r *http.Request) {
+			if p := r.URL.Query().Get("prefix"); p != "" {
+				slog.Info("preix", "o", p)
+				var ep []Endpoint
+				for _, e := range s.endpoints {
+					if strings.Contains(e.Path, p) {
+						ep = append(ep, e)
+					}
 				}
-				w.Header().Set("Content-Type", "application/json")
 
-				_, writeErr := w.Write(d)
-				if writeErr != nil {
-					http.Error(w, "Failed to write JSON: "+writeErr.Error(), http.StatusInternalServerError)
-					slog.Error("Error writing JSON", "err", writeErr)
-				}
-			case "yaml":
-				d, err := api.MarshalYAML()
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
+				a, err := GenerateOpenAPI(s, ep)
+				if err == nil {
+					slog.Info("preix", "o", p, "l", len(ep))
+					Docs(writer, r, a, template.Must(template.New("swaggerUI").Parse(swaggerUIMasterTemplate)), p)
 					return
-				}
-				raw, err := yaml.Marshal(d)
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
-				w.Header().Set("Content-Type", "application/x-yaml")
-				_, writeErr := w.Write(raw)
-				if writeErr != nil {
-					http.Error(w, "Failed to write YAML: "+writeErr.Error(), http.StatusInternalServerError)
-					slog.Error("Error writing YAML", "err", writeErr)
-				}
-			default:
-				// Serve Swagger UI HTML
-				w.Header().Set("Content-Type", "text/html; charset=utf-8")
-				data := struct {
-					OpenAPIYAMLURL string
-				}{
-					OpenAPIYAMLURL: "/openapi/v2.yaml?render=yaml", // Swagger UI will fetch YAML from this path
-				}
-				if err := swaggerUITmpl.Execute(w, data); err != nil {
-					http.Error(w, "Failed to render Swagger UI: "+err.Error(), http.StatusInternalServerError)
-					slog.Error("Error writing Swagger UI", "err", err)
 				}
 			}
+			Docs(writer, r, api, swaggerUITmpl, "")
 		},
 		Internal: false,
 		Request: Request{
@@ -430,6 +405,10 @@ func (s *Server) GenerateOpenAPIDocs() *Server {
 					Required: false,
 					Enum:     []string{"json", "yaml"},
 				},
+				"prefix": {
+					Default:  "",
+					Required: false,
+				},
 			},
 			Headers: nil,
 			Body:    nil,
@@ -438,49 +417,110 @@ func (s *Server) GenerateOpenAPIDocs() *Server {
 		Responses: nil,
 		Roles:     nil,
 	})
-
 	_ = s.AddEndpoints(context.Background(), &Endpoint{
 		Name:        "Nuxt Plugin",
 		Description: "",
 		Methods:     []string{"GET"},
 		Path:        "/openapi/nuxt/plugins",
+		Request: Request{
+			Params: map[string]ROption{
+				"prefix": {
+					Default:  "",
+					Required: false,
+					Enum:     []string{"json", "yaml"},
+				},
+			},
+			Headers: nil,
+			Body:    nil,
+		},
 		Handler: func(w http.ResponseWriter, r *http.Request) {
-			d, err := api.MarshalYAML()
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
+			if p := r.URL.Query().Get("prefix"); p != "" {
+				var ep []Endpoint
+				for _, e := range s.endpoints {
+					if strings.Contains(e.Path, p) {
+						ep = append(ep, e)
+					}
+				}
+				a, err := GenerateOpenAPI(s, ep)
+				if err == nil {
+					NuxtPlugin(w, r, a)
+					return
+				}
 			}
-			raw, err := yaml.Marshal(d)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			resp, err := nuxt3FromOpenApi.GenerateNuxt3Plugin(raw)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			w.Header().Set("Content-Type", "text/javascript")
-			w.Header().Set("Name", nuxt3FromOpenApi.ToPascalCase(api.Info.Title)+".js")
-			_, _ = w.Write([]byte(resp))
-
+			NuxtPlugin(w, r, api)
 		},
 	})
 
-	//_ = s.AddEndpoints(context.Background(), &Endpoint{
-	//	Name:        "Nuxt Plugin Setup",
-	//	Description: "",
-	//	Methods:     []string{"GET"},
-	//	Path:        "/openapi/nuxt/plugins/setup",
-	//	Handler: func(w http.ResponseWriter, r *http.Request) {
-	//		resp := strings.ReplaceAll(nuxtPluginTemplate, "remotePluginUrl", nuxt3FromOpenApi.ToPascalCase(api.Info.Title)+"PluginUrl")
-	//		w.Header().Set("Content-Type", "text/typescript")
-	//		w.Header().Set("Name", nuxt3FromOpenApi.ToPascalCase(api.Info.Title)+".ts")
-	//		_, _ = w.Write([]byte(resp))
-	//	},
-	//})
-
 	return s
+}
+
+func NuxtPlugin(w http.ResponseWriter, r *http.Request, api *openapi3.T) {
+	d, err := api.MarshalYAML()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	raw, err := yaml.Marshal(d)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	resp, err := nuxt3FromOpenApi.GenerateNuxt3Plugin(raw)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/javascript")
+	w.Header().Set("Name", nuxt3FromOpenApi.ToPascalCase(api.Info.Title)+".js")
+	_, _ = w.Write([]byte(resp))
+}
+
+func Docs(w http.ResponseWriter, r *http.Request, api *openapi3.T, swaggerUITmpl *template.Template, prefix string) {
+	renderUI := r.URL.Query().Get("render")
+	switch renderUI {
+	case "json":
+		d, err := api.MarshalJSON()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+
+		_, writeErr := w.Write(d)
+		if writeErr != nil {
+			http.Error(w, "Failed to write JSON: "+writeErr.Error(), http.StatusInternalServerError)
+			slog.Error("Error writing JSON", "err", writeErr)
+		}
+	case "yaml":
+		d, err := api.MarshalYAML()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		raw, err := yaml.Marshal(d)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/x-yaml")
+		_, writeErr := w.Write(raw)
+		if writeErr != nil {
+			http.Error(w, "Failed to write YAML: "+writeErr.Error(), http.StatusInternalServerError)
+			slog.Error("Error writing YAML", "err", writeErr)
+		}
+	default:
+		// Serve Swagger UI HTML
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		data := struct {
+			OpenAPIYAMLURL string
+		}{
+			OpenAPIYAMLURL: "/openapi/v2.yaml?render=yaml" + "&prefix=" + prefix, // Swagger UI will fetch YAML from this path
+		}
+		if err := swaggerUITmpl.Execute(w, data); err != nil {
+			http.Error(w, "Failed to render Swagger UI: "+err.Error(), http.StatusInternalServerError)
+			slog.Error("Error writing Swagger UI", "err", err)
+		}
+	}
 }
 
 const swaggerUIMasterTemplate = `

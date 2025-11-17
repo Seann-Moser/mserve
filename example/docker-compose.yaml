@@ -4,9 +4,9 @@ services:
   # MongoDB Service
   mongodb:
     image: mongo:latest # Use the latest official MongoDB image
-    container_name: mongodb_container
+    container_name: mongodsb_container
     ports:
-      - "27017:27017" # Map host port 27017 to container port 27017
+      - "27018:27017" # Map host port 27017 to container port 27017
     environment:
       # Optional: Set a MongoDB root username and password for security.
       # IMPORTANT: Change these to strong, unique credentials in a production environment.
@@ -21,9 +21,9 @@ services:
   # Mongo Express Service (Web-based MongoDB Admin Interface)
   mongo-express:
     image: mongo-express:latest # Use the latest official Mongo Express image
-    container_name: mongo_express_container
+    container_name: mongos_express_container
     ports:
-      - "8081:8081" # Map host port 8081 to container port 8081 (Mongo Express UI)
+      - "8082:8081" # Map host port 8081 to container port 8081 (Mongo Express UI)
     environment:
       # Connect Mongo Express to your MongoDB container
       ME_CONFIG_MONGODB_SERVER: mongodb # This should match the MongoDB service name

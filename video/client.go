@@ -43,7 +43,7 @@ func New(f extract.Fetcher, dir string, concurrencyWorkers int64) *Client {
 }
 
 func (vc *Client) DownloadVideoToFile(ctx context.Context, pageURL, outPath string, rule *extract.Rule) ([]*Video, error) {
-	result, err := extract.Scrape(vc.fetcher, pageURL, rule.Rules, nil)
+	result, err := extract.Scrape(vc.fetcher, pageURL, rule.Rules, extract.NewRuleProgress(1))
 	if err != nil {
 		return nil, err
 	}
@@ -89,13 +89,20 @@ func (vc *Client) DownloadVideoToFile(ctx context.Context, pageURL, outPath stri
 			continue
 		}
 		if v.Name == "" {
-			if strings.Contains(v.DownloadedFromURL, pageURL) {
-				v.Name = strings.ReplaceAll(v.DownloadedFromURL, pageURL, "")
-			} else {
-				v.Name = v.DownloadedFromURL
-			}
-			v.Name, _ = url.PathUnescape(v.DownloadedFromURL)
+			//if strings.Contains(v.DownloadedFromURL, pageURL) {
+			//	v.Name = strings.ReplaceAll(v.DownloadedFromURL, pageURL, "")
+			//} else {
+			//	v.Name, _ = url.PathUnescape(v.DownloadedFromURL)
+			//
+			//}
+			tmp, _ := url.PathUnescape(v.DownloadedFromURL)
+			s := strings.Split(tmp, "/")
+			v.Name = s[len(s)-1]
 			v.Name = nameReg.ReplaceAllString(v.Name, "")
+			v.Name = strings.ReplaceAll(v.Name, ".mp4", "")
+			v.Name = strings.ReplaceAll(v.Name, "-", " ")
+			v.Name = strings.ToTitle(v.Name)
+
 		}
 		err = vc.concurrencyWorkers.Acquire(ctx, 1)
 		if err != nil {

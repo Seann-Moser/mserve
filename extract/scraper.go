@@ -42,6 +42,13 @@ type RuleProgress struct {
 	bar         *progressbar.ProgressBar
 }
 
+func NewRuleProgress(concurrency int) *RuleProgress {
+	return &RuleProgress{
+		Concurrency: concurrency,
+		Update:      make(chan struct{}),
+	}
+}
+
 func (p *RuleProgress) Log() {
 	if p.bar == nil {
 		p.bar = progressbar.New(int(p.Total.Load()))
@@ -54,11 +61,13 @@ func (p *RuleProgress) SetTotal(v int) {
 		p.bar.ChangeMax(v)
 	}
 }
+
 func (p *RuleProgress) Close() {
 	if p.bar != nil {
 		_ = p.bar.Finish()
 	}
 }
+
 func (p *RuleProgress) IncrementTotal(v int) {
 	p.Total.Add(uint64(v))
 	if p.bar != nil {
@@ -66,17 +75,22 @@ func (p *RuleProgress) IncrementTotal(v int) {
 	}
 
 }
+
 func (p *RuleProgress) Add(v int) {
 	if p.bar != nil {
 		_ = p.bar.Add(v)
 	}
 	p.Current.Add(uint64(v))
 	if p.Update != nil {
-		p.Update <- struct{}{}
+		select {
+		case p.Update <- struct{}{}:
+		default:
+
+		}
 	}
 }
 
-func (r Result) DownloadResults(ctx context.Context, rules []*ExtractionRule, baseDir string, concurrency int) Result {
+func (r Result) DownloadResults(ctx context.Context, rules []*ExtractionRule, baseDir string, rp *RuleProgress) Result {
 	for _, rule := range rules {
 		if !rule.Download && len(rule.Children) == 0 {
 			continue
@@ -96,11 +110,12 @@ func (r Result) DownloadResults(ctx context.Context, rules []*ExtractionRule, ba
 			//todo check for to key and is object. then convert it to a map instead and read the key
 			urlResults := r.GetResultStringArray(rule.Name)
 			var downloadList = make([]string, len(urlResults))
-			if concurrency < 1 {
-				concurrency = 1
+			if rp.Concurrency < 1 {
+				rp.Concurrency = 1
 			}
-			s := semaphore.NewWeighted(int64(concurrency))
+			s := semaphore.NewWeighted(int64(rp.Concurrency))
 			wg := sync.WaitGroup{}
+			rp.IncrementTotal(len(urlResults))
 			for i, u := range urlResults {
 				wg.Add(1)
 				err := s.Acquire(ctx, 1)
@@ -112,7 +127,7 @@ func (r Result) DownloadResults(ctx context.Context, rules []*ExtractionRule, ba
 					defer wg.Done()
 					p, _ := downloadResource(ctx, u, dir)
 					downloadList[i] = p
-
+					rp.Add(1)
 				}()
 			}
 			wg.Wait()
@@ -125,7 +140,7 @@ func (r Result) DownloadResults(ctx context.Context, rules []*ExtractionRule, ba
 			}
 			var output []Result
 			for _, v := range results {
-				p := v.DownloadResults(ctx, rule.Children, dir, concurrency)
+				p := v.DownloadResults(ctx, rule.Children, dir, rp)
 				output = append(output, p)
 			}
 			r[rule.Name] = output
@@ -135,7 +150,7 @@ func (r Result) DownloadResults(ctx context.Context, rules []*ExtractionRule, ba
 				continue
 			}
 
-			p := v.DownloadResults(ctx, rule.Children, dir, concurrency)
+			p := v.DownloadResults(ctx, rule.Children, dir, rp)
 			r[rule.Name] = p
 		}
 
@@ -429,7 +444,6 @@ func applyRule(fetcher Fetcher, sel *goquery.Selection, rule *ExtractionRule, ba
 						if u2, err := base.Parse(raw); err == nil {
 							//todo visit site using fetcher
 							if rule.Visit {
-
 								doc, err := fetcher.Fetch(u2.String())
 								if err == nil {
 									var output []interface{}
@@ -439,7 +453,6 @@ func applyRule(fetcher Fetcher, sel *goquery.Selection, rule *ExtractionRule, ba
 											rec[c.Name] = v
 											//output = append(output, v)
 										}
-
 									}
 									if len(output) > 1 {
 										rec[rule.Attr] = output
