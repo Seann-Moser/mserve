@@ -292,6 +292,7 @@ func (s *Server) SetupOServer(ctx context.Context, o oserver.OServer) *Server {
 				p = strings.ReplaceAll(p, "/"+v, "/{"+k+"}")
 			}
 			if !s.hasAccess(ctx, endpointResourceName(s.ServiceName, p), usersession.UserID, usersession.AccountID, r.Method) {
+				slog.Error("forbidden", "user", usersession, "path", p, "resource", endpointResourceName(s.ServiceName, p))
 				http.Error(w, "forbidden "+p, http.StatusForbidden)
 				return
 			}

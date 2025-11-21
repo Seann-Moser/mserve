@@ -107,6 +107,7 @@ func GenerateNuxt3Plugin(yamlFile []byte) (string, error) {
 	}
 	for path, methods := range openapi.Paths {
 		for method, op := range methods {
+			// todo check func name and add Get Post Delete Etc...
 			funcName := op.OperationID
 			if funcName == "" {
 				funcName = generateFunctionName(method, path)
