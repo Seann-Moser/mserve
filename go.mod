@@ -5,7 +5,7 @@ go 1.24.4
 require (
 	github.com/PuerkitoBio/goquery v1.11.0
 	github.com/Seann-Moser/credentials v0.0.20
-	github.com/Seann-Moser/rbac v1.0.11
+	github.com/Seann-Moser/rbac v1.0.14
 	github.com/caddyserver/certmagic v0.25.0
 	github.com/getkin/kin-openapi v0.133.0
 	github.com/go-playground/form v3.1.4+incompatible
