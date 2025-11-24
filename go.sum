@@ -8,8 +8,8 @@ github.com/PuerkitoBio/goquery v1.11.0 h1:jZ7pwMQXIITcUXNH83LLk+txlaEy6NVOfTuP43
 github.com/PuerkitoBio/goquery v1.11.0/go.mod h1:wQHgxUOU3JGuj3oD/QFfxUdlzW6xPHfqyHre6VMY4DQ=
 github.com/Seann-Moser/credentials v0.0.20 h1:otUCGIGZd0imvEOoRgUJgRYc1XMD/c3J/fa3eA4r7zs=
 github.com/Seann-Moser/credentials v0.0.20/go.mod h1:cZlNxUcnWyHZAYzEKIEpuWKv6JsKIfX+amqTiwbMG4w=
-github.com/Seann-Moser/rbac v1.0.14 h1:4Hyy/3laR2ViG89gi5kDXcv4XWP8qdlOJt7w2vFBrXw=
-github.com/Seann-Moser/rbac v1.0.14/go.mod h1:Dlyu7zjANHmJbCywUma3dwFVkBWJFCOLTqDo7sNwg7Q=
+github.com/Seann-Moser/rbac v1.0.15 h1:I9asQ2tCPzgj9ZTeHWi42I/Uc9mjn/qqrmhxGnA5/FA=
+github.com/Seann-Moser/rbac v1.0.15/go.mod h1:HWfqdjSPaNi/jwXMktuJE7AH8XbUGsFwhgEc9oGOiTY=
 github.com/andybalholm/cascadia v1.3.3 h1:AG2YHrzJIm4BZ19iwJ/DAua6Btl3IwJX+VI4kktS1LM=
 github.com/andybalholm/cascadia v1.3.3/go.mod h1:xNd9bqTn98Ln4DwST8/nG+H0yuB8Hmgu1YHNnWw0GeA=
 github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc/go.mod h1:paBWMcWSl3LHKBqUq+rly7CNSldXjb2rDl3JlRe0mD8=
