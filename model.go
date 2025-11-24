@@ -3,14 +3,15 @@ package mserve
 import (
 	"context"
 	"fmt"
-	"github.com/Seann-Moser/rbac"
-	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/openapi3gen"
 	"log/slog"
 	"net/http"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/Seann-Moser/rbac"
+	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/getkin/kin-openapi/openapi3gen"
 )
 
 type Endpoint struct {
@@ -74,31 +75,36 @@ func (e *Endpoint) Init(ctx context.Context, service string, manager *rbac.Manag
 	}
 	for _, role := range e.Roles {
 		//todo check if permission exists by resource
-		p := &rbac.Permission{
-			Resource:  endpointResourceName(service, e.Path), //todo,
-			Action:    role.Access,
-			CreatedAt: time.Now().Unix(),
-		}
-		_ = manager.CreatePermission(ctx, p)
-		r, err := manager.Roles.GetRoleByName(ctx, role.Role)
-		if err != nil || r == nil {
-			r = &rbac.Role{
-				Name:        role.Role,
-				Description: "",
-				CreatedAt:   time.Now().Unix(),
+		for _, m := range e.Methods {
+			p := &rbac.Permission{
+				Resource:  endpointResourceName(service, e.Path), //todo,
+				Action:    role.Access,
+				CreatedAt: time.Now().Unix(),
 			}
-			err = manager.Roles.CreateRole(ctx, r)
+			if p.Action == "" {
+				p.Action = rbac.HTTPMethodToAction(m)
+			}
+			_ = manager.CreatePermission(ctx, p)
+			r, err := manager.Roles.GetRoleByName(ctx, role.Role)
+			if err != nil || r == nil {
+				r = &rbac.Role{
+					Name:        role.Role,
+					Description: "",
+					CreatedAt:   time.Now().Unix(),
+				}
+				err = manager.Roles.CreateRole(ctx, r)
+				if err != nil {
+					return err
+				}
+			}
+			if r == nil {
+				slog.Error("failed to find role", "role", role.Role)
+				continue
+			}
+			err = manager.AssignPermissionToRole(ctx, r.ID, p.ID)
 			if err != nil {
-				return err
+				continue
 			}
-		}
-		if r == nil {
-			slog.Error("failed to find role", "role", role.Role)
-			continue
-		}
-		err = manager.AssignPermissionToRole(ctx, r.ID, p.ID)
-		if err != nil {
-			continue
 		}
 
 	}
