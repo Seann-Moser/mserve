@@ -565,3 +565,51 @@ const swaggerUIMasterTemplate = `
 </body>
 </html>
 `
+
+type ErrorR struct {
+	Status    int    `json:"status"`
+	Error     string `json:"error"`
+	Timestamp string `json:"timestamp"`
+}
+
+// WriteError sends a JSON error response.
+func WriteError(w http.ResponseWriter, r *http.Request, status int, err string) {
+	slog.Error("HTTP error",
+		"method", r.Method,
+		"path", r.URL.Path,
+		"status", status,
+		"error", err,
+	)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	resp := ErrorR{
+		Status:    status,
+		Error:     err,
+		Timestamp: time.Now().Format(time.RFC3339),
+	}
+	WriteBody(w, r, resp)
+}
+
+func GetParam(r *http.Request, name string, defaultValue string) string {
+	if p := PathParam(r, name); p != "" {
+		return p
+	}
+	if p := QueryParam(r, name); p != "" {
+		return p
+	}
+	return defaultValue
+}
+
+func PathParam(r *http.Request, name string) string {
+	v, ok := mux.Vars(r)[name]
+	if !ok {
+		return ""
+	}
+	return v
+}
+
+func QueryParam(r *http.Request, name string) string {
+	v := r.URL.Query().Get(name)
+	return v
+}
