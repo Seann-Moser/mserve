@@ -1,0 +1,10 @@
+{{ range $i, $k := . }}
+export class {{$i}} {
+    {{range $j, $v := $k}}private {{$v}}: any;
+    {{end}}
+    constructor(json={}){
+        {{range $j, $v := $k}}this.{{$v}} = json.{{$v}}
+        {{end}}
+    }
+}
+{{end}}

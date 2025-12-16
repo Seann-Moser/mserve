@@ -16,6 +16,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+type Pagination struct {
+	Page       int `json:"page"`
+	Limit      int `json:"limit"`
+	Total      int `json:"total"`
+	TotalPages int `json:"totalPages"`
+}
+
 type Page[T any] struct {
 	Items      []T `json:"items"`
 	Page       int `json:"page"`

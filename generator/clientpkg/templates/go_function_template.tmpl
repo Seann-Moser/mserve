@@ -1,0 +1,9 @@
+// {{.Name}} auto generated
+func (c *Client) {{.Name}}(ctx context.Context{{if .RequestType}}, {{.RequestTypeName}} {{.RequestType}}{{end}}{{range .MuxVars}}, {{.}} string{{end}}{{if .UsesQueryParams }}{{range $k, $v := .QueryParams}}, {{$v}} string{{end}}{{end}}{{if .UsesHeaderParams }}, headers map[string]string{{end}},skipCache bool) {{.Return}} {
+	path := {{.Path}}{{if .UsesQueryParams }}
+	params := map[string]string{}{{end}}{{range $k, $v := .QueryParams}}
+	params["{{$k}}"] = {{$v}}{{end}}
+	requestDataInternal := clientpkg.NewRequestData(path, http.Method{{.MethodType}}, {{if .RequestType}}{{.RequestTypeName}}{{else}}nil{{end}}, {{if .UsesQueryParams }} params{{else}}nil{{end}}, {{if .UsesHeaderParams }} clientpkg.MergeMap[string](headers,c.headers){{else}}clientpkg.MergeMap[string](nil,c.headers){{end}},skipCache){{if .UseIterator}}
+	return clientpkg.NewIterator[{{.DataTypeName}}](ctx, c.base, requestDataInternal){{ else }}
+	return c.base.Request(ctx,requestDataInternal,nil,true){{ end }}
+}

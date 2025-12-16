@@ -1,0 +1,48 @@
+
+/**
+ * {{.Name}} auto generated
+ * @param {Pagination} pagination
+ * {{if .RequestType}}@param {{"{"}}{{.RequestType}}{{"}"}} {{.RequestTypeName}}
+ * {{end}}  {{range .MuxVars}}
+ * @param {string} {{.}}{{end}}{{if .UsesQueryParams }}{{range .QueryParams}}
+ * @param {string} {{.}}{{end}}{{end}}
+ */
+export function {{.Name}}({{if .RequestType}}{{.RequestTypeName}}, {{end}}{{range .MuxVars}}{{.}}, {{end}}{{if .UsesQueryParams }}{{range $k,$v := .QueryParams}}{{$v}}, {{end}}{{end}}pagination){
+    const config = {{.Name}}Config({{range .MuxVars}}{{.}}, {{end}}{{if .UsesQueryParams }}{{range $k,$v := .QueryParams}}{{$v}}, {{end}}{{end}}pagination)
+    {{if .RequestType}}
+    if ({{.RequestTypeName}} !== null) {
+        config.body = JSON.stringify({{.RequestTypeName}});
+    }{{end}} {{if .Async}}
+    const data = $fetch({{.Path}}, config){{else}}
+    const data = $fetch({{.Path}}, config){{end}}{{if .Async}}{{if .UseIterator}}
+    return new Iterator(JSON.parse(data),{{.Path}},config,pagination){{else}}
+    return JSON.parse(data){{end}}{{else}}
+    {{if .UseIterator}}return new Iterator(data,{{.Path}},config,pagination){{else}}
+    return data{{end}}{{end}}
+}
+
+/**
+ * {{.Name}}Config auto generated
+ * @param {Pagination} pagination
+ * {{range .MuxVars}}
+ * @param {string} {{.}}{{end}}{{if .UsesQueryParams }}{{range .QueryParams}}
+ * @param {string} {{.}}{{end}}js_function_template.tmpl
+ * {{end}}
+ */
+export function {{.Name}}Config({{range .MuxVars}}{{.}},{{end}}{{if .UsesQueryParams }}{{range $k,$v := .QueryParams}}{{$v}} ,{{end}}{{end}}pagination){
+    if (pagination === null || pagination === undefined){
+        pagination = new Pagination({})
+    }
+     let params = {}
+     params["items_per_page"] = pagination.ItemsPerPage
+     params["page"] = pagination.CurrentPage{{range $k,$v := .QueryParams}}
+     params["{{$k}}"] = {{$v}}{{end}}
+     return {
+        server: false,
+        method: "{{.MethodType}}",
+        credentials: "include",
+        params: params,
+        baseURL: runtimeConfig.public.{{.UrlEnvVarName}},
+        path: {{.Path}}
+     }
+}

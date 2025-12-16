@@ -4,17 +4,21 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/Seann-Moser/credentials/oauth/oserver"
 	"github.com/Seann-Moser/credentials/session"
 	"github.com/Seann-Moser/credentials/user"
 	"github.com/Seann-Moser/mserve"
+	generators "github.com/Seann-Moser/mserve/generator"
 	"github.com/Seann-Moser/rbac"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"log"
-	"time"
 )
 
+/*
+ */
 func main() {
 	ctx := context.Background()
 	mongoDB, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017").SetAuth(options.Credential{
@@ -52,15 +56,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = s.SetupOServer(ctx, oServer).
+	s.SetupOServer(ctx, oServer).
 		SetupRbac(ctx).
 		SetupUserLogin(ctx, userServer).
 		HealthCheck("/healthz", nil).
-		GenerateOpenAPIDocs().
-		Run(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
+		GenerateOpenAPIDocs()
+
+	_ = generators.NewGoClientGenerator(nil).Generate(generators.NewGenData(), s.Endpoints()...)
 
 }
 

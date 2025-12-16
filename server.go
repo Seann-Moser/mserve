@@ -280,7 +280,9 @@ func (s *Server) HealthCheck(path string, f func(ctx context.Context) error) *Se
 	})
 	return s
 }
-
+func (s *Server) Endpoints() []Endpoint {
+	return s.endpoints
+}
 func (s *Server) SetupOServer(ctx context.Context, o oserver.OServer) *Server {
 	handler := oserver.NewHandler(o, oserver.ContentTypeJSON)
 	//fix this resouce needs to be calculated dynamicly
