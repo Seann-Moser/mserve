@@ -4,7 +4,7 @@ go 1.25.4
 
 require (
 	github.com/PuerkitoBio/goquery v1.11.0
-	github.com/Seann-Moser/credentials v0.0.23
+	github.com/Seann-Moser/credentials v0.0.25
 	github.com/Seann-Moser/rbac v1.0.16
 	github.com/caddyserver/certmagic v0.25.1
 	github.com/cenkalti/backoff/v4 v4.3.0

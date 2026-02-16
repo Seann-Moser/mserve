@@ -6,8 +6,8 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/PuerkitoBio/goquery v1.11.0 h1:jZ7pwMQXIITcUXNH83LLk+txlaEy6NVOfTuP43xxfqw=
 github.com/PuerkitoBio/goquery v1.11.0/go.mod h1:wQHgxUOU3JGuj3oD/QFfxUdlzW6xPHfqyHre6VMY4DQ=
-github.com/Seann-Moser/credentials v0.0.23 h1:PyEeVVMrTETjct3U/i3za8cZVhxVtAa662kCLLrMsMc=
-github.com/Seann-Moser/credentials v0.0.23/go.mod h1:iNiemOjTDOinndio4h2v4A9DEW7f6wieV6RiFA9bW4I=
+github.com/Seann-Moser/credentials v0.0.25 h1:5u5yAzM88GaK0r1m0ZUjjrS1iSH30koiUeBY3g2AzN0=
+github.com/Seann-Moser/credentials v0.0.25/go.mod h1:iNiemOjTDOinndio4h2v4A9DEW7f6wieV6RiFA9bW4I=
 github.com/Seann-Moser/rbac v1.0.16 h1:pq6SJx21o8cBRN6uLV2/lq8c2aHdEs4nrealBwPpdg0=
 github.com/Seann-Moser/rbac v1.0.16/go.mod h1:HWfqdjSPaNi/jwXMktuJE7AH8XbUGsFwhgEc9oGOiTY=
 github.com/andybalholm/cascadia v1.3.3 h1:AG2YHrzJIm4BZ19iwJ/DAua6Btl3IwJX+VI4kktS1LM=
