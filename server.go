@@ -198,7 +198,16 @@ func (s *Server) AddEndpoints(ctx context.Context, endpoints ...*Endpoint) error
 			return err
 		}
 		m := append(e.Methods, http.MethodOptions)
-		s.router.HandleFunc(e.Path, handler).Methods(m...)
+		if e.Prefix {
+			s.router.
+				PathPrefix(e.Path).
+				HandlerFunc(handler).
+				Methods(m...)
+		} else {
+			s.router.
+				HandleFunc(e.Path, handler).
+				Methods(m...)
+		}
 		s.endpoints = append(s.endpoints, *e)
 	}
 	return nil

@@ -25,6 +25,7 @@ type Endpoint struct {
 	Scope       string
 	Responses   []Response `json:"responses"`
 	Roles       []Role     `json:"roles"`
+	Prefix      bool
 }
 
 type Request struct {
