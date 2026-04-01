@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	app "github.com/lib4u/fake-useragent"
 	"github.com/schollz/progressbar/v3"
 	"github.com/tidwall/gjson"
@@ -352,15 +353,35 @@ func downloadResource(ctx context.Context, rawURL string, saveDir string) (strin
 		return "", err
 	}
 	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			slog.Error("Failed to close response body", "err", err)
-		}
+		_ = Body.Close()
 	}(resp.Body)
-	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("bad status downloading %s: %d", rawURL, resp.StatusCode)
-	}
 
+	if resp.StatusCode >= 500 {
+		b := backoff.NewExponentialBackOff()
+		b.MaxElapsedTime = 30 * time.Second
+		err := backoff.Retry(func() error {
+			r, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+			if err != nil {
+				return backoff.Permanent(err)
+			}
+			if ua != nil {
+				r.Header.Set("User-Agent", ua.GetRandom())
+			}
+			resp, err := http.DefaultClient.Do(r)
+			if err != nil {
+				return err
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode >= 500 {
+				return fmt.Errorf("server error: %d", resp.StatusCode)
+			}
+			// Read the response body if needed, but since we are just checking, this is sufficient.
+			return nil
+		}, backoff.WithContext(b, ctx))
+		if err != nil {
+			return "", err
+		}
+	}
 	// use last segment as filename, or fall back to a timestamp/UUID if empty
 
 	if saveDir == "" {
