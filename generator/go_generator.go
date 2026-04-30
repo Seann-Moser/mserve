@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Seann-Moser/mserve"
+	"github.com/DarlingGoose/mserve"
 	openai "github.com/sashabaranov/go-openai"
 )
 
@@ -40,7 +40,7 @@ var defaultImports = []Imports{
 	},
 	{
 		Name: "clientpkg",
-		Path: "github.com/Seann-Moser/mserve/generator/clientpkg",
+		Path: "github.com/DarlingGoose/mserve/generator/clientpkg",
 	},
 }
 
@@ -117,7 +117,7 @@ func (g GoClientGenerator) Generate(data GeneratorData, endpoint ...mserve.Endpo
 			Path: "fmt",
 		},
 		{
-			Path: "github.com/Seann-Moser/mserve/generator/clientpkg",
+			Path: "github.com/DarlingGoose/mserve/generator/clientpkg",
 		},
 
 		{

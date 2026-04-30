@@ -4,7 +4,7 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/Seann-Moser/mserve"
+	"github.com/DarlingGoose/mserve"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )

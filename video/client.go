@@ -18,7 +18,7 @@ import (
 	"github.com/schollz/progressbar/v3"
 	"golang.org/x/sync/semaphore"
 
-	"github.com/Seann-Moser/mserve/extract"
+	"github.com/DarlingGoose/mserve/extract"
 	"github.com/google/uuid"
 )
 

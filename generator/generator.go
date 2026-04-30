@@ -1,7 +1,7 @@
 package generators
 
 import (
-	"github.com/Seann-Moser/mserve"
+	"github.com/DarlingGoose/mserve"
 )
 
 type Language string

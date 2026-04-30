@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Seann-Moser/credentials/oauth/oserver"
+	"github.com/DarlingGoose/credentials/oauth/oserver"
 	"github.com/go-playground/form"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"

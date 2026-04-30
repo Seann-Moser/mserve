@@ -2,10 +2,10 @@ package mserve
 
 import (
 	"fmt"
-	"github.com/Seann-Moser/credentials/oauth/oserver"
-	"github.com/Seann-Moser/credentials/user"
-	"github.com/Seann-Moser/rbac"
-	"github.com/Seann-Moser/rbac/rbacServer"
+	"github.com/DarlingGoose/credentials/oauth/oserver"
+	"github.com/DarlingGoose/credentials/user"
+	"github.com/DarlingGoose/rbac"
+	"github.com/DarlingGoose/rbac/rbacServer"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-webauthn/webauthn/protocol"
 	"net/http"

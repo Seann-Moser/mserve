@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Seann-Moser/rbac"
+	"github.com/DarlingGoose/rbac"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3gen"
 )

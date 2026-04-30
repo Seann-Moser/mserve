@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/Seann-Moser/mserve"
+	"github.com/DarlingGoose/mserve"
 	"github.com/google/uuid"
 	"github.com/tidwall/gjson"
 )

@@ -16,7 +16,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/Seann-Moser/mserve"
+	"github.com/DarlingGoose/mserve"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )

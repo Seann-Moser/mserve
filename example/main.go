@@ -7,12 +7,12 @@ import (
 	"log"
 	"time"
 
-	"github.com/Seann-Moser/credentials/oauth/oserver"
-	"github.com/Seann-Moser/credentials/session"
-	"github.com/Seann-Moser/credentials/user"
-	"github.com/Seann-Moser/mserve"
-	generators "github.com/Seann-Moser/mserve/generator"
-	"github.com/Seann-Moser/rbac"
+	"github.com/DarlingGoose/credentials/oauth/oserver"
+	"github.com/DarlingGoose/credentials/session"
+	"github.com/DarlingGoose/credentials/user"
+	"github.com/DarlingGoose/mserve"
+	generators "github.com/DarlingGoose/mserve/generator"
+	"github.com/DarlingGoose/rbac"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
