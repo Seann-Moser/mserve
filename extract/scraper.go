@@ -31,7 +31,16 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-var ua *app.UserAgent
+var (
+	ua   *app.UserAgent
+	uaMu sync.Mutex
+)
+
+const (
+	resourceDownloadInitialInterval = time.Second
+	resourceDownloadMaxInterval     = time.Minute
+	resourceDownloadMaxElapsedTime  = 15 * time.Minute
+)
 
 type Result map[string]interface{}
 
@@ -118,15 +127,19 @@ func (r Result) DownloadResults(ctx context.Context, rules []*ExtractionRule, ba
 			wg := sync.WaitGroup{}
 			rp.IncrementTotal(len(urlResults))
 			for i, u := range urlResults {
-				wg.Add(1)
 				err := s.Acquire(ctx, 1)
 				if err != nil {
 					continue
 				}
+				wg.Add(1)
 				go func() {
 					defer s.Release(1)
 					defer wg.Done()
-					p, _ := downloadResource(ctx, u, dir)
+					p, err := downloadResource(ctx, u, dir)
+					if err != nil {
+						slog.Error("failed downloading resource", "url", u, "err", err)
+						p = u
+					}
 					downloadList[i] = p
 					rp.Add(1)
 				}()
@@ -332,57 +345,11 @@ func downloadResource(ctx context.Context, rawURL string, saveDir string) (strin
 	p := removeDuplicateExt(filename)
 	outPath := filepath.Join(saveDir, p)
 
-	if _, err := os.Stat(outPath); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(outPath); err == nil {
 		return outPath, nil
-	}
-
-	r, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
-	if err != nil {
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", err
 	}
-	if ua == nil {
-		ua, err = app.New()
-		if err == nil {
-			r.Header.Set("User-Agent", ua.GetRandom())
-		}
-	} else {
-		r.Header.Set("User-Agent", ua.GetRandom())
-	}
-	resp, err := http.DefaultClient.Do(r)
-	if err != nil {
-		return "", err
-	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
-
-	if resp.StatusCode >= 500 {
-		b := backoff.NewExponentialBackOff()
-		b.MaxElapsedTime = 30 * time.Second
-		err := backoff.Retry(func() error {
-			r, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
-			if err != nil {
-				return backoff.Permanent(err)
-			}
-			if ua != nil {
-				r.Header.Set("User-Agent", ua.GetRandom())
-			}
-			resp, err := http.DefaultClient.Do(r)
-			if err != nil {
-				return err
-			}
-			defer resp.Body.Close()
-			if resp.StatusCode >= 500 {
-				return fmt.Errorf("server error: %d", resp.StatusCode)
-			}
-			// Read the response body if needed, but since we are just checking, this is sufficient.
-			return nil
-		}, backoff.WithContext(b, ctx))
-		if err != nil {
-			return "", err
-		}
-	}
-	// use last segment as filename, or fall back to a timestamp/UUID if empty
 
 	if saveDir == "" {
 		saveDir = "./"
@@ -391,18 +358,129 @@ func downloadResource(ctx context.Context, rawURL string, saveDir string) (strin
 		return "", err
 	}
 
-	f, err := os.Create(outPath)
-	if err != nil {
+	tmpPath := outPath + "." + uuid.NewString() + ".tmp"
+	if err := retryResourceDownload(ctx, rawURL, tmpPath); err != nil {
+		_ = os.Remove(tmpPath)
 		return "", err
 	}
-	defer func(f *os.File) {
-		_ = f.Close()
-	}(f)
-
-	if _, err := io.Copy(f, resp.Body); err != nil {
+	if err := os.Rename(tmpPath, outPath); err != nil {
+		_ = os.Remove(tmpPath)
 		return "", err
 	}
 	return outPath, nil
+}
+
+func retryResourceDownload(ctx context.Context, rawURL, outPath string) error {
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = resourceDownloadInitialInterval
+	b.MaxInterval = resourceDownloadMaxInterval
+	b.MaxElapsedTime = resourceDownloadMaxElapsedTime
+	b.Reset()
+
+	for {
+		retryAfter, err := downloadResourceOnce(ctx, rawURL, outPath)
+		if err == nil {
+			return nil
+		}
+		if permanent, ok := err.(*backoff.PermanentError); ok {
+			return permanent.Err
+		}
+
+		next := b.NextBackOff()
+		if next == backoff.Stop {
+			return err
+		}
+		if retryAfter > next {
+			next = retryAfter
+		}
+		slog.Debug("retrying resource download", "url", rawURL, "err", err, "duration", next)
+
+		timer := time.NewTimer(next)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
+func downloadResourceOnce(ctx context.Context, rawURL, outPath string) (time.Duration, error) {
+	r, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return 0, backoff.Permanent(err)
+	}
+	if userAgent := randomUserAgent(); userAgent != "" {
+		r.Header.Set("User-Agent", userAgent)
+	}
+
+	resp, err := http.DefaultClient.Do(r)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"))
+		err := fmt.Errorf("download resource status %d", resp.StatusCode)
+		if retryableResourceStatus(resp.StatusCode) {
+			return retryAfter, err
+		}
+		return 0, backoff.Permanent(err)
+	}
+
+	f, err := os.Create(outPath)
+	if err != nil {
+		return 0, backoff.Permanent(err)
+	}
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		_ = f.Close()
+		_ = os.Remove(outPath)
+		return 0, err
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(outPath)
+		return 0, err
+	}
+	return 0, nil
+}
+
+func retryableResourceStatus(status int) bool {
+	switch status {
+	case http.StatusRequestTimeout, http.StatusTooEarly, http.StatusTooManyRequests,
+		http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return true
+	default:
+		return status >= http.StatusInternalServerError
+	}
+}
+
+func parseRetryAfter(value string) time.Duration {
+	if value == "" {
+		return 0
+	}
+	if seconds, err := strconv.Atoi(value); err == nil {
+		return time.Duration(seconds) * time.Second
+	}
+	if when, err := http.ParseTime(value); err == nil {
+		return time.Until(when)
+	}
+	return 0
+}
+
+func randomUserAgent() string {
+	uaMu.Lock()
+	defer uaMu.Unlock()
+
+	if ua == nil {
+		next, err := app.New()
+		if err != nil {
+			return ""
+		}
+		ua = next
+	}
+	return ua.GetRandom()
 }
 
 func removeDuplicateExt(filename string) string {
